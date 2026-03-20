@@ -5,7 +5,6 @@
 <title>NCAA Pace Tracker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<!-- PWA Support -->
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -51,3 +50,90 @@ margin-top: 4px;
 width: 100%;
 }
 button:active {
+transform: scale(0.98);
+}
+.good { color: #22c55e; }
+.bad { color: #f97373; }
+.card {
+border: 1px solid #333;
+padding: 16px;
+border-radius: 10px;
+margin-top: 16px;
+background: #181818;
+font-size: 0.95rem;
+}
+.row { margin: 4px 0; }
+</style>
+</head>
+<body>
+<h1>NCAA Hoops Pace Tracker</h1>
+
+<div>
+<label for="date">Date</label>
+<input id="date" type="date" />
+
+<button id="loadGames">Load Games</button>
+
+<label for="gameSelect">Game</label>
+<select id="gameSelect">
+<option value="">-- select a game --</option>
+</select>
+
+<label for="line">Over/Under Line (total points)</label>
+<input id="line" type="number" step="0.5" placeholder="e.g. 147.5" />
+
+<label for="pick">Your Pick</label>
+<select id="pick">
+<option value="over">Over</option>
+<option value="under">Under</option>
+</select>
+
+<button id="start">Start Tracking</button>
+</div>
+
+<div id="output" class="card" style="display:none;">
+<div class="row" id="matchup"></div>
+<div class="row" id="state"></div>
+<div class="row" id="score"></div>
+<div class="row" id="pace"></div>
+<div class="row" id="status"></div>
+</div>
+
+<script>
+const dateInput = document.getElementById('date');
+const loadGamesBtn = document.getElementById('loadGames');
+const gameSelect = document.getElementById('gameSelect');
+const lineInput = document.getElementById('line');
+const pickSelect = document.getElementById('pick');
+const startBtn = document.getElementById('start');
+
+const output = document.getElementById('output');
+const matchupEl = document.getElementById('matchup');
+const stateEl = document.getElementById('state');
+const scoreEl = document.getElementById('score');
+const paceEl = document.getElementById('pace');
+const statusEl = document.getElementById('status');
+
+let pollInterval = null;
+let selectedGameId = null;
+let scoreboardUrl = null;
+
+// Build NCAA scoreboard URL for a given date
+function buildScoreboardUrl(dateStr) {
+const [yyyy, mm, dd] = dateStr.split('-');
+return `https://www.ncaa.com/scoreboard/basketball-men/d1/${yyyy}/${mm}/${dd}`;
+}
+
+// Parse games from NCAA scoreboard HTML
+function parseGamesFromHtml(html) {
+const parser = new DOMParser();
+const doc = parser.parseFromString(html, 'text/html');
+
+// This relies on NCAA's scoreboard structure; tweak selectors if they change
+const gameNodes = Array.from(doc.querySelectorAll('.gamePod, .game-pod, [data-gameid]'));
+const games = [];
+
+gameNodes.forEach((node, idx) => {
+const gameId = node.getAttribute('data-gameid') || `game-${idx}`;
+
+const teamNameNodes = node.querySelectorAll('.gamePod-game-team
