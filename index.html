@@ -3,14 +3,65 @@
 <head>
 <meta charset="UTF-8" />
 <title>NCAA Pace Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<!-- PWA bits (for Option 2) -->
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="PaceTracker">
+<link rel="apple-touch-icon" href="icon-192.png">
+
 <style>
-body { font-family: system-ui, sans-serif; padding: 20px; background: #111; color: #eee; }
-label { display: block; margin: 8px 0 4px; }
-select, input { padding: 6px; margin-bottom: 10px; width: 260px; }
-button { padding: 8px 14px; cursor: pointer; }
-.good { color: #00d26a; }
-.bad { color: #ff4b4b; }
-.card { border: 1px solid #444; padding: 16px; border-radius: 8px; margin-top: 16px; background: #181818; }
+body {
+font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+padding: 20px;
+background: #111;
+color: #eee;
+max-width: 480px;
+margin: 0 auto;
+}
+h1 {
+font-size: 1.6rem;
+margin-bottom: 12px;
+}
+label {
+display: block;
+margin: 8px 0 4px;
+font-size: 0.9rem;
+}
+select, input {
+padding: 8px;
+margin-bottom: 10px;
+width: 100%;
+border-radius: 6px;
+border: 1px solid #444;
+background: #181818;
+color: #eee;
+}
+button {
+padding: 10px 14px;
+cursor: pointer;
+border-radius: 6px;
+border: none;
+background: #2563eb;
+color: #fff;
+font-weight: 600;
+margin-top: 4px;
+}
+button:active {
+transform: scale(0.98);
+}
+.good { color: #22c55e; }
+.bad { color: #f97373; }
+.card {
+border: 1px solid #333;
+padding: 16px;
+border-radius: 10px;
+margin-top: 16px;
+background: #181818;
+font-size: 0.95rem;
+}
 .row { margin: 4px 0; }
 </style>
 </head>
@@ -18,7 +69,7 @@ button { padding: 8px 14px; cursor: pointer; }
 <h1>NCAA Hoops Pace Tracker</h1>
 
 <div>
-<label for="date">Date (YYYY-MM-DD)</label>
+<label for="date">Date</label>
 <input id="date" type="date" />
 
 <button id="loadGames">Load Games</button>
@@ -29,7 +80,7 @@ button { padding: 8px 14px; cursor: pointer; }
 </select>
 
 <label for="line">Over/Under Line (total points)</label>
-<input id="line" type="number" placeholder="e.g. 147.5" />
+<input id="line" type="number" step="0.5" placeholder="e.g. 147.5" />
 
 <label for="pick">Your Pick</label>
 <select id="pick">
@@ -49,7 +100,6 @@ button { padding: 8px 14px; cursor: pointer; }
 </div>
 
 <script>
-// Base URL for the free NCAA API wrapper (community project)
 const API_BASE = 'https://ncaa-api.henrygd.me';
 
 const dateInput = document.getElementById('date');
@@ -70,7 +120,6 @@ let pollInterval = null;
 let selectedGame = null;
 
 function formatDateForScoreboard(dateStr) {
-// input: YYYY-MM-DD → output: YYYY/MM/DD
 const [y, m, d] = dateStr.split('-');
 return `${y}/${m}/${d}`;
 }
@@ -108,7 +157,6 @@ opt.dataset.gameId = game.gameID;
 gameSelect.appendChild(opt);
 });
 
-// stash full games list on the select element
 gameSelect._games = games;
 } catch (e) {
 console.error(e);
@@ -117,7 +165,6 @@ gameSelect.innerHTML = '<option value="">Error loading games</option>';
 }
 
 function parseClockToMinutesLeft(clockStr) {
-// clockStr like "12:34" or "0:45"
 if (!clockStr || !clockStr.includes(':')) return null;
 const [m, s] = clockStr.split(':').map(Number);
 return m + s / 60;
@@ -132,7 +179,6 @@ const period = game.currentPeriod || '';
 const clock = game.contestClock || '';
 const gameState = game.gameState || '';
 
-// If final, just compare final total to line
 if (gameState === 'final') {
 const projected = totalPoints;
 return { projected, totalPoints, elapsed: 40, period, clock, gameState };
@@ -140,17 +186,16 @@ return { projected, totalPoints, elapsed: 40, period, clock, gameState };
 
 const minutesLeft = parseClockToMinutesLeft(clock);
 if (minutesLeft == null) {
-// No usable clock (halftime, pregame, etc.)
 return { projected: null, totalPoints, elapsed: null, period, clock, gameState };
 }
 
 let elapsed;
-if (period.toLowerCase().includes('1st')) {
+const p = period.toLowerCase();
+if (p.includes('1st')) {
 elapsed = 20 - minutesLeft;
-} else if (period.toLowerCase().includes('2nd')) {
+} else if (p.includes('2nd')) {
 elapsed = 20 + (20 - minutesLeft);
 } else {
-// OT or unknown: rough fallback, treat as late game
 elapsed = 40 - minutesLeft;
 }
 
@@ -180,7 +225,6 @@ const line = lineInput.value;
 const pick = pickSelect.value;
 
 try {
-// Re-hit the same scoreboard endpoint and re-find this game by gameID
 const date = dateInput.value;
 const pathDate = formatDateForScoreboard(date);
 const url = `${API_BASE}/scoreboard/basketball-men/d1/${pathDate}/all-conf`;
@@ -246,9 +290,14 @@ return;
 selectedGame = gameSelect._games[idx].game;
 
 if (pollInterval) clearInterval(pollInterval);
-pollGame(); // immediate
-pollInterval = setInterval(pollGame, 15000); // every 15s
+pollGame();
+pollInterval = setInterval(pollGame, 15000);
 });
+
+// Optional: register service worker if present
+if ('serviceWorker' in navigator) {
+navigator.serviceWorker.register('service-worker.js').catch(console.error);
+}
 </script>
 </body>
 </html>
