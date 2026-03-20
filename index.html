@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NCAABB Contrarian O/U Dashboard</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0b1020;
+      color: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 24px;
+    }
+    .controls {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .badge-strong {
+      background: #ff4d4f;
+      color: #fff;
+    }
+    .badge-moderate {
+      background: #faad14;
+      color: #000;
+    }
+    .badge-weak {
+      background: #1890ff;
+      color: #fff;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 8px 6px;
+      text-align: right;
+      border-bottom: 1px solid #1f2435;
+    }
+    th {
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: #a0a4b8;
+      background: #111629;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    td:first-child, th:first-child {
+      text-align: left;
+    }
+    tr.highlight-strong {
+      background: rgba(255, 77, 79, 0.12);
+    }
+    tr.highlight-moderate {
+      background: rgba(250, 173, 20, 0.12);
+    }
+    tr:hover {
+      background: #1a2033;
+    }
+    .pill {
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 11px;
+      display: inline-block;
+    }
+    .pill-over {
+      background: rgba(24, 144, 255, 0.15);
+      color: #40a9ff;
+    }
+    .pill-under {
+      background: rgba(82, 196, 26, 0.15);
+      color: #95de64;
+    }
+    .pill-contrarian {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #fff;
+    }
+    .small {
+      font-size: 11px;
+      color: #a0a4b8;
+    }
+    .sentiment-bar {
+      height: 6px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #141827;
+      margin-top: 4px;
+    }
+    .sentiment-bar-inner {
+      height: 100%;
+      background: linear-gradient(90deg, #1890ff, #52c41a);
+    }
+    .footer {
+      margin-top: 12px;
+      font-size: 11px;
+      color: #80849a;
+    }
+    input[type="number"] {
+      background: #111629;
+      border: 1px solid #2a3045;
+      color: #f5f5f5;
+      padding: 4px 6px;
+      border-radius: 4px;
+      width: 90px;
+      font-size: 12px;
+    }
+    select {
+      background: #111629;
+      border: 1px solid #2a3045;
+      color: #f5f5f5;
+      padding: 4px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>NCAABB Contrarian Over/Under Dashboard</h1>
+  <div class="controls">
+    <div>
+      <span class="small">Min O/U Volume</span><br />
+      <input id="minVolume" type="number" value="50000" step="5000" />
+    </div>
+    <div>
+      <span class="small">Strong Imbalance ≥</span><br />
+      <input id="strongImbalance" type="number" value="70" step="5" />%
+    </div>
+    <div>
+      <span class="small">Moderate Imbalance ≥</span><br />
+      <input id="moderateImbalance" type="number" value="60" step="5" />%
+    </div>
+    <div>
+      <span class="small">Sort by</span><br />
+      <select id="sortBy">
+        <option value="imbalance">Imbalance % (desc)</option>
+        <option value="volume">Total Volume (desc)</option>
+        <option value="time">Tip Time (asc)</option>
+      </select>
+    </div>
+    <div>
+      <span class="small">Contrarian Side</span><br />
+      <select id="contrarianSide">
+        <option value="all">All</option>
+        <option value="over">Contrarian Over</option>
+        <option value="under">Contrarian Under</option>
+      </select>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Game</th>
+        <th>Tip</th>
+        <th>Total</th>
+        <th>O Vol</th>
+        <th>U Vol</th>
+        <th>O %</th>
+        <th>U %</th>
+        <th>Imbalance</th>
+        <th>Public Side</th>
+        <th>Contrarian</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+
+  <div class="footer">
+    Volume and sentiment are simulated. Replace data source with live Kalshi-style feed for production.
+  </div>
+
+  <script>
+    // ===========================
+    // CONFIG
+    // ===========================
+    const TODAY = new Date(); // you can pin this if needed
+    const MS_PER_MIN = 60 * 1000;
+
+    // ===========================
+    // SIMULATED DATA (UPGRADE POINT: replace with real API)
+    // ===========================
+    // Fields:
+    // id, home, away, tipTime (Date), total, overVolume, underVolume
+    const markets = [
+      {
+        id: "game1",
+        home: "Duke",
+        away: "Siena",
+        tipTime: addMinutes(TODAY, 90),
+        total: 145.5,
+        overVolume: 120000,
+        underVolume: 30000
+      },
+      {
+        id: "game2",
+        home: "Kansas",
+        away: "Baylor",
+        tipTime: addMinutes(TODAY, 150),
+        total: 149.5,
+        overVolume: 40000,
+        underVolume: 90000
+      },
+      {
+        id: "game3",
+        home: "Gonzaga",
+        away: "Saint Mary's",
+        tipTime: addMinutes(TODAY, 210),
+        total: 137.5,
+        overVolume: 80000,
+        underVolume: 60000
+      },
+      {
+        id: "game4",
+        home: "UConn",
+        away: "Marquette",
+        tipTime: addMinutes(TODAY, 60),
+        total: 141.5,
+        overVolume: 30000,
+        underVolume: 25000
+      },
+      {
+        id: "game5",
+        home: "Arizona",
+        away: "Oregon",
+        tipTime: addMinutes(TODAY, 180),
+        total: 151.5,
+        overVolume: 150000,
+        underVolume: 35000
+      },
+      {
+        id: "game6",
+        home: "Houston",
+        away: "Texas Tech",
+        tipTime: addMinutes(TODAY, 240),
+        total: 131.5,
+        overVolume: 45000,
+        underVolume: 110000
+      }
+    ];
+
+    function addMinutes(base, minutes) {
+      return new Date(base.getTime() + minutes * MS_PER_MIN);
+    }
+
+    // ===========================
+    // CORE LOGIC
+    // ===========================
+    function computeDerived(market) {
+      const totalVolume = market.overVolume + market.underVolume;
+      const overPct = totalVolume > 0 ? (market.overVolume / totalVolume) * 100 : 50;
+      const underPct = 100 - overPct;
+      const publicSide = overPct > underPct ? "Over" : (underPct > overPct ? "Under" : "Even");
+      const imbalance = Math.abs(overPct - underPct); // 0–100
+      const contrarianSide = publicSide === "Over" ? "Under" :
+                             publicSide === "Under" ? "Over" : "None";
+      return {
+        ...market,
+        totalVolume,
+        overPct,
+        underPct,
+        publicSide,
+        imbalance,
+        contrarianSide
+      };
+    }
+
+    function formatTime(d) {
+      const hours = d.getHours();
+      const minutes = d.getMinutes().toString().padStart(2, "0");
+      const ampm = hours >= 12 ? "PM" : "AM";
+      const h12 = ((hours + 11) % 12) + 1;
+      return `${h12}:${minutes} ${ampm}`;
+    }
+
+    function formatNumber(n) {
+      return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+    }
+
+    function formatPct(n) {
+      return n.toFixed(1) + "%";
+    }
+
+    // ===========================
+    // RENDER
+    // ===========================
+    const tbody = document.getElementById("tableBody");
+    const minVolumeInput = document.getElementById("minVolume");
+    const strongImbalanceInput = document.getElementById("strongImbalance");
+    const moderateImbalanceInput = document.getElementById("moderateImbalance");
+    const sortBySelect = document.getElementById("sortBy");
+    const contrarianSideSelect = document.getElementById("contrarianSide");
+
+    function render() {
+      const minVolume = Number(minVolumeInput.value) || 0;
+      const strongThreshold = Number(strongImbalanceInput.value) || 70;
+      const moderateThreshold = Number(moderateImbalanceInput.value) || 60;
+      const sortBy = sortBySelect.value;
+      const contrarianFilter = contrarianSideSelect.value;
+
+      let rows = markets.map(computeDerived);
+
+      // Filter by volume
+      rows = rows.filter(r => r.totalVolume >= minVolume);
+
+      // Filter by contrarian side if requested
+      if (contrarianFilter === "over") {
+        rows = rows.filter(r => r.contrarianSide === "Over");
+      } else if (contrarianFilter === "under") {
+        rows = rows.filter(r => r.contrarianSide === "Under");
+      }
+
+      // Sort
+      rows.sort((a, b) => {
+        if (sortBy === "imbalance") {
+          return b.imbalance - a.imbalance;
+        } else if (sortBy === "volume") {
+          return b.totalVolume - a.totalVolume;
+        } else if (sortBy === "time") {
+          return a.tipTime - b.tipTime;
+        }
+        return 0;
+      });
+
+      tbody.innerHTML = "";
+
+      for (const r of rows) {
+        const tr = document.createElement("tr");
+
+        // Highlight by imbalance
+        if (r.imbalance >= strongThreshold) {
+          tr.classList.add("highlight-strong");
+        } else if (r.imbalance >= moderateThreshold) {
+          tr.classList.add("highlight-moderate");
+        }
+
+        const gameCell = document.createElement("td");
+        gameCell.innerHTML = `
+          ${r.away} @ ${r.home}<br />
+          <span class="small">ID: ${r.id}</span>
+        `;
+
+        const tipCell = document.createElement("td");
+        tipCell.textContent = formatTime(r.tipTime);
+
+        const totalCell = document.createElement("td");
+        totalCell.textContent = r.total.toFixed(1);
+
+        const overVolCell = document.createElement("td");
+        overVolCell.textContent = "$" + formatNumber(r.overVolume);
+
+        const underVolCell = document.createElement("td");
+        underVolCell.textContent = "$" + formatNumber(r.underVolume);
+
+        const overPctCell = document.createElement("td");
+        overPctCell.innerHTML = `
+          ${formatPct(r.overPct)}
+          <div class="sentiment-bar">
+            <div class="sentiment-bar-inner" style="width:${r.overPct}%;"></div>
+          </div>
+        `;
+
+        const underPctCell = document.createElement("td");
+        underPctCell.textContent = formatPct(r.underPct);
+
+        const imbalanceCell = document.createElement("td");
+        imbalanceCell.textContent = formatPct(r.imbalance);
+
+        const publicSideCell = document.createElement("td");
+        if (r.publicSide === "Over") {
+          publicSideCell.innerHTML = `<span class="pill pill-over">Public: Over</span>`;
+        } else if (r.publicSide === "Under") {
+          publicSideCell.innerHTML = `<span class="pill pill-under">Public: Under</span>`;
+        } else {
+          publicSideCell.innerHTML = `<span class="pill">Even</span>`;
+        }
+
+        const contrarianCell = document.createElement("td");
+        if (r.contrarianSide === "Over" || r.contrarianSide === "Under") {
+          contrarianCell.innerHTML = `<span class="pill pill-contrarian">Contrarian: ${r.contrarianSide}</span>`;
+        } else {
+          contrarianCell.innerHTML = `<span class="small">None</span>`;
+        }
+
+        tr.appendChild(gameCell);
+        tr.appendChild(tipCell);
+        tr.appendChild(totalCell);
+        tr.appendChild(overVolCell);
+        tr.appendChild(underVolCell);
+        tr.appendChild(overPctCell);
+        tr.appendChild(underPctCell);
+        tr.appendChild(imbalanceCell);
+        tr.appendChild(publicSideCell);
+        tr.appendChild(contrarianCell);
+
+        tbody.appendChild(tr);
+      }
+    }
+
+    // Wire controls
+    [minVolumeInput, strongImbalanceInput, moderateImbalanceInput, sortBySelect, contrarianSideSelect]
+      .forEach(el => el.addEventListener("input", render));
+
+    render();
+
+    // ===========================
+    // UPGRADE POINTS FOR YOU
+    // ===========================
+    // 1. Replace `markets` with a fetch to your real NCAABB O/U feed:
+    //    - Include: game id, teams, tip time, total, overVolume, underVolume.
+    // 2. Add a refresh interval (e.g., every 30–60s) to keep volumes live.
+    // 3. If you can get Kalshi-style prices too, you can:
+    //    - Add price-based sentiment (Over price vs Under price).
+    //    - Combine price + volume into a single contrarian score.
+  </script>
+</body>
+</html>
