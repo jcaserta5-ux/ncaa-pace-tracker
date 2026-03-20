@@ -121,7 +121,7 @@ let scoreboardUrl = null;
 // Build NCAA scoreboard URL for a given date
 function buildScoreboardUrl(dateStr) {
 const [yyyy, mm, dd] = dateStr.split('-');
-return `https://www.ncaa.com/scoreboard/basketball-men/d1/${yyyy}/${mm}/${dd}`;
+return `https://www.ncaa.com/scoreboard/basketball-men/d1/${yyyy}/${mm}/${dd}/all-conf`;
 }
 
 // Parse games from NCAA scoreboard HTML
