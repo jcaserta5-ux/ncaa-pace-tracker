@@ -12,12 +12,13 @@
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 16px;
+      font-size: 15px; /* bumped */
     }
 
     h1 {
       text-align: center;
       margin-bottom: 12px;
-      font-size: 22px;
+      font-size: 24px; /* bumped */
     }
 
     .top-bar {
@@ -36,12 +37,12 @@
     }
 
     label {
-      font-size: 14px;
+      font-size: 15px; /* bumped */
     }
 
     input[type="date"], input[type="text"], select {
       padding: 6px 8px;
-      font-size: 14px;
+      font-size: 15px; /* bumped */
       border-radius: 4px;
       border: 1px solid #30363d;
       background: #161b22;
@@ -50,7 +51,7 @@
 
     button {
       padding: 6px 10px;
-      font-size: 14px;
+      font-size: 15px; /* bumped */
       border-radius: 4px;
       border: none;
       cursor: pointer;
@@ -68,7 +69,7 @@
       flex-wrap: wrap;
       justify-content: center;
       gap: 10px;
-      font-size: 13px;
+      font-size: 15px; /* bumped */
       align-items: center;
     }
 
@@ -87,8 +88,9 @@
       background: #161b22;
       border: 1px solid #30363d;
       border-radius: 8px;
-      padding: 10px;
+      padding: 12px; /* bumped */
       transition: transform 0.15s ease, border-color 0.15s ease;
+      font-size: 16px; /* bumped */
     }
 
     .game-card:hover {
@@ -111,8 +113,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 14px;
-      margin-bottom: 2px;
+      font-size: 17px; /* bumped */
+      margin-bottom: 4px;
     }
 
     .team-name {
@@ -122,8 +124,8 @@
     }
 
     .team-logo {
-      width: 26px;
-      height: 26px;
+      width: 28px;
+      height: 28px;
       border-radius: 4px;
       background: #0d1117;
       object-fit: contain;
@@ -131,23 +133,27 @@
 
     .team-score {
       font-weight: bold;
-      min-width: 24px;
+      min-width: 28px;
       text-align: right;
-      font-size: 14px;
+      font-size: 20px; /* bumped */
     }
 
+    /* ⭐ NEW: vertically aligned metrics */
     .metrics-column {
+      display: grid;
+      grid-template-rows: 1fr 1fr;   /* aligns Total with Away, Pace with Home */
+      justify-items: end;
+      align-items: center;
       min-width: 120px;
       text-align: right;
-      font-size: 14px;
+      font-size: 17px; /* bumped */
     }
 
     .metric-line {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
       white-space: nowrap;
-    }
-
-    .metric-label {
-      margin-right: 4px;
     }
 
     .metric-value {
@@ -155,11 +161,12 @@
       min-width: 40px;
       text-align: right;
       font-variant-numeric: tabular-nums;
+      font-size: 20px; /* bumped */
     }
 
     .status {
-      margin-top: 4px;
-      font-size: 12px;
+      margin-top: 6px;
+      font-size: 15px; /* bumped */
       opacity: 0.85;
     }
 
@@ -169,38 +176,38 @@
     }
 
     .ou-section {
-      margin-top: 8px;
+      margin-top: 10px;
       border-top: 1px solid #30363d;
-      padding-top: 6px;
-      font-size: 12px;
+      padding-top: 8px;
+      font-size: 15px; /* bumped */
     }
 
     .ou-row {
       display: flex;
       align-items: center;
-      gap: 4px;
-      margin-bottom: 4px;
+      gap: 6px;
+      margin-bottom: 6px;
       flex-wrap: wrap;
     }
 
     .ou-row label {
-      min-width: 55px;
+      min-width: 60px;
     }
 
     .ou-row input[type="text"] {
-      width: 60px;
+      width: 70px;
       padding: 4px;
-      font-size: 12px;
+      font-size: 15px; /* bumped */
     }
 
     .ou-row select {
-      padding: 3px 4px;
-      font-size: 12px;
+      padding: 4px 6px;
+      font-size: 15px; /* bumped */
     }
 
     .trend-dot {
-      width: 10px;
-      height: 10px;
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
       background: #6e7681;
       display: inline-block;
