@@ -90,7 +90,7 @@
 
     #game-json {
       margin-top: 30px;
-      white-space: pre-wrap;
+      white-space: normal;
       background: #161b22;
       padding: 15px;
       border-radius: 8px;
@@ -111,8 +111,8 @@
 
   <div id="scoreboard"></div>
 
-  <h2>Selected Game JSON</h2>
-  <pre id="game-json">Click a game card to load its full JSON…</pre>
+  <h2>Game Details</h2>
+  <div id="game-json">Click a game card to load details…</div>
 
   <script>
     let autoRefresh = null;
@@ -183,6 +183,7 @@
       });
     }
 
+    // ⭐⭐⭐ ONLY THIS FUNCTION IS CHANGED ⭐⭐⭐
     async function loadGameDetails(id) {
       const res = await fetch(`/api/game/${id}`);
 
@@ -192,9 +193,80 @@
         return;
       }
 
-      const json = await res.json();
-      document.getElementById("game-json").textContent =
-        JSON.stringify(json, null, 2);
+      const data = await res.json();
+
+      const teams = data.teams || [];
+      const away = teams.find(t => t.homeAway === "away") || teams[0];
+      const home = teams.find(t => t.homeAway === "home") || teams[1];
+
+      // Scores
+      let awayScore = "";
+      let homeScore = "";
+
+      if (data.source === "espn-v2") {
+        awayScore = away?.score ?? "";
+        homeScore = home?.score ?? "";
+      } else {
+        const boxTeams = data.boxscore?.teams || [];
+        awayScore = boxTeams.find(t => t.homeAway === "away")?.score ?? "";
+        homeScore = boxTeams.find(t => t.homeAway === "home")?.score ?? "";
+      }
+
+      const isLive = data.status?.includes("IN_PROGRESS");
+
+      const clock = data.clock || "";
+      const period = data.period || "";
+      const possession = data.possession || "";
+
+      let pace = null;
+      if (data.boxscore?.teams?.length === 2) {
+        const t1 = data.boxscore.teams[0].statistics;
+        const t2 = data.boxscore.teams[1].statistics;
+        const poss = (calcPoss(t1) + calcPoss(t2)) / 2;
+        pace = Math.round(poss);
+      }
+
+      document.getElementById("game-json").innerHTML = `
+        <div style="display:flex;align-items:center;margin-bottom:10px;">
+          <img src="${away.team.logo}" style="width:40px;height:40px;margin-right:10px;">
+          <div>${away.team.name}</div>
+          <div style="margin-left:auto;font-size:24px;font-weight:bold;">${awayScore}</div>
+        </div>
+
+        <div style="display:flex;align-items:center;margin-bottom:10px;">
+          <img src="${home.team.logo}" style="width:40px;height:40px;margin-right:10px;">
+          <div>${home.team.name}</div>
+          <div style="margin-left:auto;font-size:24px;font-weight:bold;">${homeScore}</div>
+        </div>
+
+        <div style="opacity:0.8;margin-top:10px;">
+          ${isLive ? "<strong style='color:#ff4d4d;'>LIVE</strong> • " : ""}
+          Status: ${data.status}
+          ${period ? ` • Period: ${period}` : ""}
+          ${clock ? ` • Clock: ${clock}` : ""}
+          ${possession ? ` • Possession: ${possession}` : ""}
+        </div>
+
+        <div style="opacity:0.8;margin-top:10px;">
+          ${pace ? `Estimated Pace: ${pace} possessions` : ""}
+        </div>
+      `;
+    }
+
+    function calcPoss(stats) {
+      if (!stats) return 0;
+
+      const get = name => {
+        const s = stats.find(x => x.name === name);
+        return s ? Number(s.displayValue) : 0;
+      };
+
+      const fga = get("fieldGoalsAttempted");
+      const to = get("turnovers");
+      const fta = get("freeThrowsAttempted");
+      const orb = get("offensiveRebounds");
+
+      return fga + to + 0.44 * fta - orb;
     }
 
     loadScoreboard();
