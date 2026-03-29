@@ -12,12 +12,13 @@
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 16px;
+      font-size: 15px; /* bumped */
     }
 
     h1 {
       text-align: center;
       margin-bottom: 12px;
-      font-size: 22px;
+      font-size: 24px; /* bumped */
     }
 
     .top-bar {
@@ -36,12 +37,12 @@
     }
 
     label {
-      font-size: 14px;
+      font-size: 15px; /* bumped */
     }
 
     input[type="date"], input[type="text"], select {
       padding: 6px 8px;
-      font-size: 14px;
+      font-size: 15px; /* bumped */
       border-radius: 4px;
       border: 1px solid #30363d;
       background: #161b22;
@@ -50,7 +51,7 @@
 
     button {
       padding: 6px 10px;
-      font-size: 14px;
+      font-size: 15px; /* bumped */
       border-radius: 4px;
       border: none;
       cursor: pointer;
@@ -68,7 +69,7 @@
       flex-wrap: wrap;
       justify-content: center;
       gap: 10px;
-      font-size: 13px;
+      font-size: 15px; /* bumped */
       align-items: center;
     }
 
@@ -87,8 +88,9 @@
       background: #161b22;
       border: 1px solid #30363d;
       border-radius: 8px;
-      padding: 10px;
+      padding: 12px; /* slightly bigger */
       transition: transform 0.15s ease, border-color 0.15s ease;
+      font-size: 16px; /* bumped */
     }
 
     .game-card:hover {
@@ -111,8 +113,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 14px;
-      margin-bottom: 2px;
+      font-size: 17px; /* bumped */
+      margin-bottom: 4px;
     }
 
     .team-name {
@@ -122,8 +124,8 @@
     }
 
     .team-logo {
-      width: 26px;
-      height: 26px;
+      width: 28px;
+      height: 28px;
       border-radius: 4px;
       background: #0d1117;
       object-fit: contain;
@@ -131,23 +133,27 @@
 
     .team-score {
       font-weight: bold;
-      min-width: 24px;
+      min-width: 28px;
       text-align: right;
-      font-size: 14px;
+      font-size: 20px; /* bumped */
     }
 
+    /* ⭐ NEW: vertically aligned metrics */
     .metrics-column {
+      display: grid;
+      grid-template-rows: 1fr 1fr;
+      justify-items: end;
+      align-items: center;
       min-width: 120px;
+      font-size: 17px; /* bumped */
       text-align: right;
-      font-size: 14px;
     }
 
     .metric-line {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
       white-space: nowrap;
-    }
-
-    .metric-label {
-      margin-right: 4px;
     }
 
     .metric-value {
@@ -155,11 +161,12 @@
       min-width: 40px;
       text-align: right;
       font-variant-numeric: tabular-nums;
+      font-size: 20px; /* bumped */
     }
 
     .status {
-      margin-top: 4px;
-      font-size: 12px;
+      margin-top: 6px;
+      font-size: 15px; /* bumped */
       opacity: 0.85;
     }
 
@@ -169,38 +176,38 @@
     }
 
     .ou-section {
-      margin-top: 8px;
+      margin-top: 10px;
       border-top: 1px solid #30363d;
-      padding-top: 6px;
-      font-size: 12px;
+      padding-top: 8px;
+      font-size: 15px; /* bumped */
     }
 
     .ou-row {
       display: flex;
       align-items: center;
-      gap: 4px;
-      margin-bottom: 4px;
+      gap: 6px;
+      margin-bottom: 6px;
       flex-wrap: wrap;
     }
 
     .ou-row label {
-      min-width: 55px;
+      min-width: 60px;
     }
 
     .ou-row input[type="text"] {
-      width: 60px;
+      width: 70px;
       padding: 4px;
-      font-size: 12px;
+      font-size: 15px; /* bumped */
     }
 
     .ou-row select {
-      padding: 3px 4px;
-      font-size: 12px;
+      padding: 4px 6px;
+      font-size: 15px; /* bumped */
     }
 
     .trend-dot {
-      width: 10px;
-      height: 10px;
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
       background: #6e7681;
       display: inline-block;
@@ -242,10 +249,10 @@
 
   <div id="scoreboard"></div>
 
-   <script>
+
+  <script>
   let autoRefresh = null;
 
-  // userBets[gameId] = { full: { line, side }, half1: {...}, half2: {...} }
   const userBets = {};
   const teamStatsCache = {};
   const scoreboardGames = {};
@@ -407,7 +414,6 @@
       card.innerHTML = headerHtml + ouHtml;
       container.appendChild(card);
 
-      // ensure userBets entry exists
       if (!userBets[game.id]) {
         userBets[game.id] = {
           full: { line: "", side: "" },
@@ -416,7 +422,6 @@
         };
       }
 
-      // ⭐ repopulate user inputs from userBets
       const bets = userBets[game.id];
 
       document.getElementById(`line-full-${game.id}`).value = bets.full.line || "";
@@ -509,7 +514,6 @@
     else dot.classList.add("red");
   }
 
-  // ---- Projection A: Pace-based ----
   function projectTotalPaceBased(state, segmentKey, halfSegment) {
     const { minutesPlayed, currentTotal } = state;
     if (minutesPlayed <= 0) return null;
@@ -528,135 +532,4 @@
       const minutesInSecond = minutesPlayed - 20;
       if (minutesInSecond <= 0) return null;
       const rate = currentTotal / minutesPlayed;
-      return rate * 20;
-    }
-
-    return null;
-  }
-
-  // ---- Projection C2: Team-adjusted curve ----
-  function projectTotalCurveBased(state, segmentKey, halfSegment) {
-    const { minutesPlayed, currentTotal, homeTeamId, awayTeamId } = state;
-    if (minutesPlayed <= 0) return null;
-
-    const homeStats = teamStatsCache[homeTeamId];
-    const awayStats = teamStatsCache[awayTeamId];
-    if (!homeStats || !awayStats) return null;
-
-    const expectedTotalFull = homeStats.expectedTotal + awayStats.expectedTotal;
-
-    let expectedAtMinute;
-    if (segmentKey === "full") {
-      expectedAtMinute = expectedTotalFull * (minutesPlayed / 40);
-    } else if (halfSegment === "first") {
-      if (minutesPlayed > 20) return null;
-      const expectedFirstHalf = expectedTotalFull * 0.5;
-      expectedAtMinute = expectedFirstHalf * (minutesPlayed / 20);
-    } else if (halfSegment === "second") {
-      if (minutesPlayed <= 20) return null;
-      const minutesInSecond = minutesPlayed - 20;
-      if (minutesInSecond <= 0) return null;
-      const expectedSecondHalf = expectedTotalFull * 0.5;
-      expectedAtMinute = expectedSecondHalf * (minutesInSecond / 20);
-    } else {
-      return null;
-    }
-
-    const ratio = currentTotal / Math.max(expectedAtMinute, 1e-6);
-    const impliedFinal = expectedTotalFull * ratio;
-    return impliedFinal;
-  }
-
-  // ---- Helpers: state + team stats ----
-  function extractGameStateFromScoreboard(game) {
-    try {
-      const comp = game.competitions?.[0];
-      const teams = comp?.competitors || [];
-      const away = teams.find(t => t.homeAway === "away") || teams[0];
-      const home = teams.find(t => t.homeAway === "home") || teams[1];
-
-      const homeTeamId = home?.team?.id;
-      const awayTeamId = away?.team?.id;
-
-      const homeScore = Number(home?.score ?? 0);
-      const awayScore = Number(away?.score ?? 0);
-      const currentTotal = homeScore + awayScore;
-
-      const status = comp?.status;
-      const period = status?.period || 1;
-      const clockStr = status?.displayClock || "0:00";
-
-      const [minStr, secStr] = clockStr.split(":");
-      const clockMinutes = parseInt(minStr || "0", 10);
-      const clockSeconds = parseInt(secStr || "0", 10);
-
-      let minutesPlayed;
-      if (period === 1) {
-        minutesPlayed = 20 - (clockMinutes + clockSeconds / 60);
-      } else if (period === 2) {
-        minutesPlayed = 20 + (20 - (clockMinutes + clockSeconds / 60));
-      } else if (period > 2) {
-        minutesPlayed = 40 + (5 * (period - 3)) - (clockMinutes + clockSeconds / 60);
-      } else {
-        minutesPlayed = 0;
-      }
-
-      return {
-        minutesPlayed,
-        currentTotal,
-        homeTeamId,
-        awayTeamId
-      };
-    } catch {
-      return null;
-    }
-  }
-
-  async function ensureTeamStatsFromGame(game) {
-    const comp = game.competitions?.[0];
-    const teams = comp?.competitors || [];
-    const away = teams.find(t => t.homeAway === "away") || teams[0];
-    const home = teams.find(t => t.homeAway === "home") || teams[1];
-
-    const ids = [away?.team?.id, home?.team?.id].filter(Boolean);
-
-    for (const id of ids) {
-      if (!id || teamStatsCache[id]) continue;
-      const stats = await fetchTeamStats(id);
-      if (stats) teamStatsCache[id] = stats;
-    }
-  }
-
-  async function fetchTeamStats(teamId) {
-    try {
-      const res = await fetch(`/api/team/${teamId}`);
-      if (!res.ok) return null;
-      const data = await res.json();
-
-      const ppg = Number(data.pointsPerGame ?? 0);
-      const fga = Number(data.fieldGoalsAttempted ?? 0);
-      const fta = Number(data.freeThrowsAttempted ?? 0);
-      const orb = Number(data.offensiveRebounds ?? 0);
-      const tov = Number(data.turnovers ?? 0);
-      const games = Number(data.gamesPlayed ?? 0) || 1;
-
-      const possessionsTotal = fga + tov + 0.44 * fta - orb;
-      const pace = possessionsTotal / games;
-      const ppp = ppg / Math.max(pace, 1e-6);
-
-      const expectedTotal = ppg; // per 40 minutes
-
-      return { pace, ppp, expectedTotal };
-    } catch {
-      return null;
-    }
-  }
-
-  // ---- init ----
-  initDate();
-  loadScoreboard();
-  autoRefresh = setInterval(loadScoreboard, 15000);
-</script>
-</body>
-</html>
-
+      return rate * 20
