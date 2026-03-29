@@ -52,34 +52,13 @@
     font-weight: bold;
   }
 
-  #gameDetails {
-    margin-top: 30px;
+  pre {
     background: #111418;
     padding: 20px;
     border-radius: 12px;
-  }
-
-  .detail-team-row {
-    display: flex;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-
-  .detail-team-row img {
-    width: 48px;
-    height: 48px;
-    margin-right: 12px;
-  }
-
-  .detail-score {
-    margin-left: auto;
-    font-size: 32px;
-    font-weight: bold;
-  }
-
-  .status-line {
-    margin-top: 10px;
-    opacity: 0.8;
+    margin-top: 30px;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 </style>
 </head>
@@ -90,21 +69,21 @@
 
 <div id="scoreboard" class="scoreboard"></div>
 
-<div id="gameDetails"></div>
+<pre id="gameDetails">(click a game to load details)</pre>
 
 <script>
 // ------------------------------------------------------------
-// LOAD SCOREBOARD
+// LOAD SCOREBOARD (original working version)
 // ------------------------------------------------------------
 async function loadScoreboard() {
-  const res = await fetch("/api/scoreboard"); // now defaults to today
+  const res = await fetch("/api/scoreboard"); // backend now defaults to today
   const data = await res.json();
 
   const container = document.getElementById("scoreboard");
   container.innerHTML = "";
 
   if (!data.events || data.events.length === 0) {
-    container.innerHTML = "<div>No games found for today.</div>";
+    container.innerHTML = "<div>No games found.</div>";
     return;
   }
 
@@ -138,104 +117,14 @@ async function loadScoreboard() {
 }
 
 // ------------------------------------------------------------
-// LOAD GAME DETAILS (UNIFIED JSON)
+// LOAD GAME DETAILS (original working version)
 // ------------------------------------------------------------
 async function loadGame(id) {
   const res = await fetch(`/api/game/${id}`);
   const data = await res.json();
 
-  renderGameDetails(data);
-}
-
-// ------------------------------------------------------------
-// RENDER GAME DETAILS
-// ------------------------------------------------------------
-function renderGameDetails(data) {
-  const container = document.getElementById("gameDetails");
-  container.innerHTML = "";
-
-  const teams = data.teams;
-
-  const away = teams.find(t => t.homeAway === "away");
-  const home = teams.find(t => t.homeAway === "home");
-
-  // Scores (legacy or v2)
-  let awayScore = "";
-  let homeScore = "";
-
-  if (data.source === "espn-v2") {
-    awayScore = away.score ?? "";
-    homeScore = home.score ?? "";
-  } else {
-    const boxTeams = data.boxscore?.teams || [];
-    awayScore = boxTeams.find(t => t.homeAway === "away")?.score ?? "";
-    homeScore = boxTeams.find(t => t.homeAway === "home")?.score ?? "";
-  }
-
-  // Live detection
-  const isLive = data.status?.includes("IN_PROGRESS");
-
-  // Clock / period / possession (only available in v2)
-  const clock = data.clock || "";
-  const period = data.period || "";
-  const possession = data.possession || "";
-
-  // Pace calculation
-  let pace = null;
-  if (data.boxscore?.teams?.length === 2) {
-    const t1 = data.boxscore.teams[0].statistics;
-    const t2 = data.boxscore.teams[1].statistics;
-
-    const poss = (calcPoss(t1) + calcPoss(t2)) / 2;
-    pace = Math.round(poss);
-  }
-
-  container.innerHTML = `
-    <h2>Game Details</h2>
-
-    <div class="detail-team-row">
-      <img src="${away.team.logo}" />
-      <div>${away.team.name}</div>
-      <div class="detail-score">${awayScore}</div>
-    </div>
-
-    <div class="detail-team-row">
-      <img src="${home.team.logo}" />
-      <div>${home.team.name}</div>
-      <div class="detail-score">${homeScore}</div>
-    </div>
-
-    <div class="status-line">
-      ${isLive ? "LIVE • " : ""}
-      Status: ${data.status}
-      ${period ? ` • Period: ${period}` : ""}
-      ${clock ? ` • Clock: ${clock}` : ""}
-      ${possession ? ` • Possession: ${possession}` : ""}
-    </div>
-
-    <div class="status-line">
-      ${pace ? `Estimated Pace: ${pace} possessions` : ""}
-    </div>
-  `;
-}
-
-// ------------------------------------------------------------
-// PACE CALCULATION
-// ------------------------------------------------------------
-function calcPoss(stats) {
-  if (!stats) return 0;
-
-  const get = name => {
-    const s = stats.find(x => x.name === name);
-    return s ? Number(s.displayValue) : 0;
-  };
-
-  const fga = get("fieldGoalsAttempted");
-  const to = get("turnovers");
-  const fta = get("freeThrowsAttempted");
-  const orb = get("offensiveRebounds");
-
-  return fga + to + 0.44 * fta - orb;
+  document.getElementById("gameDetails").textContent =
+    JSON.stringify(data, null, 2);
 }
 
 // ------------------------------------------------------------
