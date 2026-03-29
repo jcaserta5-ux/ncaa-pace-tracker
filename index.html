@@ -2,156 +2,201 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>NCAA Live Scoreboard (Proxy)</title>
+  <title>NCAA D1 Men’s Live Scoreboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <style>
-    body { font-family: system-ui, sans-serif; background:#050816; color:#f9fafb; margin:0; padding:1.5rem; }
-    h1 { margin-top:0; }
-    .controls { margin-bottom:1rem; display:flex; gap:0.5rem; flex-wrap:wrap; }
-    input, button { padding:0.4rem 0.6rem; border-radius:4px; border:1px solid #4b5563; background:#111827; color:#f9fafb; }
-    button { cursor:pointer; border-color:#2563eb; }
-    button:hover { background:#1d4ed8; }
-    .games { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:0.75rem; margin-top:1rem; }
-    .game-card { background:#111827; border-radius:6px; padding:0.6rem 0.75rem; border:1px solid #1f2937; cursor:pointer; }
-    .game-card:hover { border-color:#2563eb; }
-    .teams { display:flex; justify-content:space-between; font-size:0.9rem; }
-    .status { font-size:0.75rem; color:#9ca3af; margin-top:0.25rem; }
-    .selected { border-color:#22c55e; }
-    pre { background:#020617; padding:0.75rem; border-radius:6px; overflow:auto; font-size:0.8rem; }
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    input {
+      padding: 8px;
+      font-size: 16px;
+      border-radius: 4px;
+      border: 1px solid #30363d;
+      background: #161b22;
+      color: #e6edf3;
+    }
+
+    button {
+      padding: 8px 14px;
+      font-size: 16px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      background: #238636;
+      color: white;
+    }
+
+    button:hover {
+      background: #2ea043;
+    }
+
+    #scoreboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .game-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .game-card:hover {
+      transform: scale(1.02);
+      border-color: #58a6ff;
+    }
+
+    .team-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 18px;
+    }
+
+    .status {
+      margin-top: 8px;
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    .status.live {
+      color: #ff4d4d;
+      font-weight: bold;
+    }
+
+    #game-json {
+      margin-top: 30px;
+      white-space: pre-wrap;
+      background: #161b22;
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+    }
   </style>
 </head>
+
 <body>
   <h1>NCAA D1 Men’s Live Scoreboard</h1>
 
   <div class="controls">
-    <label>
-      <span>Date (YYYY-MM-DD):</span>
-      <input id="dateInput" type="text" />
-    </label>
-    <button id="loadBtn">Load Scoreboard</button>
-    <button id="autoBtn">Toggle Auto-Refresh (10s)</button>
+    <label>Date (YYYY-MM-DD):</label>
+    <input id="dateInput" type="text" value="2026-03-29" />
+    <button onclick="loadScoreboard()">Load Scoreboard</button>
+    <button onclick="toggleAutoRefresh()">Toggle Auto-Refresh (10s)</button>
   </div>
 
-  <div id="meta"></div>
-  <div id="games" class="games"></div>
+  <div id="scoreboard"></div>
 
   <h2>Selected Game JSON</h2>
-  <pre id="gameJson">Click a game card to load its full JSON…</pre>
+  <pre id="game-json">Click a game card to load its full JSON…</pre>
 
   <script>
-    const API_BASE = '/api';
-    const dateInput = document.getElementById('dateInput');
-    const loadBtn = document.getElementById('loadBtn');
-    const autoBtn = document.getElementById('autoBtn');
-    const gamesEl = document.getElementById('games');
-    const metaEl = document.getElementById('meta');
-    const gameJsonEl = document.getElementById('gameJson');
-
-    let autoTimer = null;
-    let lastDate = null;
-    let selectedGameId = null;
-
-    function todayISO() {
-      const d = new Date();
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
-    }
-
-    dateInput.value = todayISO();
+    let autoRefresh = null;
 
     async function loadScoreboard() {
-      const date = dateInput.value.trim() || todayISO();
-      lastDate = date;
+      const date = document.getElementById("dateInput").value;
+      const res = await fetch(`/api/scoreboard?date=${date}`);
 
-      metaEl.textContent = 'Loading scoreboard…';
-      gamesEl.innerHTML = '';
+      if (!res.ok) {
+        document.getElementById("scoreboard").innerHTML =
+          `<p>Error loading scoreboard: HTTP ${res.status}</p>`;
+        return;
+      }
 
-      try {
-        const res = await fetch(`${API_BASE}/scoreboard?date=${encodeURIComponent(date)}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+      const data = await res.json();
+      renderScoreboard(data.games);
+    }
 
-        renderScoreboard(data);
-      } catch (err) {
-        metaEl.textContent = `Error loading scoreboard: ${err.message}`;
+    function toggleAutoRefresh() {
+      if (autoRefresh) {
+        clearInterval(autoRefresh);
+        autoRefresh = null;
+        alert("Auto-refresh OFF");
+      } else {
+        autoRefresh = setInterval(loadScoreboard, 10000);
+        alert("Auto-refresh ON (10s)");
       }
     }
 
-    function renderScoreboard(data) {
-      // NCAA structure is usually { games: [ { game: {...} }, ... ], ... }
-      const games = (data.games || []).map(g => g.game || g);
+    function renderScoreboard(games) {
+      const container = document.getElementById("scoreboard");
+      container.innerHTML = "";
 
-      metaEl.textContent = `Games: ${games.length}`;
+      games.forEach(game => {
+        const comp = game.competitions?.[0];
+        const teams = comp?.competitors || [];
 
-      gamesEl.innerHTML = '';
-      games.forEach(g => {
-        const card = document.createElement('div');
-        card.className = 'game-card';
-        card.dataset.gameId = g.id;
+        const home = teams.find(t => t.homeAway === "home") || teams[0];
+        const away = teams.find(t => t.homeAway === "away") || teams[1];
 
-        const homeName = g.home && (g.home.shortName || g.home.name || 'Home');
-        const awayName = g.away && (g.away.shortName || g.away.name || 'Away');
-        const homeScore = g.home && g.home.score != null ? g.home.score : '-';
-        const awayScore = g.away && g.away.score != null ? g.away.score : '-';
-        const status = g.status || g.gameState || '';
+        const homeName = home?.team?.displayName || "Home";
+        const awayName = away?.team?.displayName || "Away";
+
+        const homeScore = home?.score ?? "";
+        const awayScore = away?.score ?? "";
+
+        const statusText = comp?.status?.type?.shortDetail || "Scheduled";
+        const isLive = comp?.status?.type?.state === "in";
+
+        const card = document.createElement("div");
+        card.className = "game-card";
+        card.dataset.gameId = game.id;
 
         card.innerHTML = `
-          <div class="teams">
-            <div>${awayName}</div>
-            <div>${awayScore}</div>
+          <div class="team-row">
+            <span>${awayName}</span>
+            <span>${awayScore}</span>
           </div>
-          <div class="teams">
-            <div>${homeName}</div>
-            <div>${homeScore}</div>
+          <div class="team-row">
+            <span>${homeName}</span>
+            <span>${homeScore}</span>
           </div>
-          <div class="status">${status}</div>
+          <div class="status ${isLive ? "live" : ""}">${statusText}</div>
         `;
 
-        card.addEventListener('click', () => {
-          document.querySelectorAll('.game-card').forEach(c => c.classList.remove('selected'));
-          card.classList.add('selected');
-          selectedGameId = g.id;
-          loadGame(g.id);
-        });
-
-        gamesEl.appendChild(card);
+        card.addEventListener("click", () => loadGameDetails(game.id));
+        container.appendChild(card);
       });
     }
 
-    async function loadGame(gameId) {
-      gameJsonEl.textContent = `Loading game ${gameId}…`;
-      try {
-        const res = await fetch(`${API_BASE}/game/${encodeURIComponent(gameId)}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        gameJsonEl.textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        gameJsonEl.textContent = `Error loading game: ${err.message}`;
+    async function loadGameDetails(id) {
+      const res = await fetch(`/api/game/${id}`);
+
+      if (!res.ok) {
+        document.getElementById("game-json").textContent =
+          `Error loading game: HTTP ${res.status}`;
+        return;
       }
+
+      const json = await res.json();
+      document.getElementById("game-json").textContent =
+        JSON.stringify(json, null, 2);
     }
 
-    loadBtn.addEventListener('click', () => {
-      loadScoreboard();
-    });
-
-    autoBtn.addEventListener('click', () => {
-      if (autoTimer) {
-        clearInterval(autoTimer);
-        autoTimer = null;
-        autoBtn.textContent = 'Toggle Auto-Refresh (10s)';
-      } else {
-        autoTimer = setInterval(() => {
-          loadScoreboard();
-          if (selectedGameId) {
-            loadGame(selectedGameId);
-          }
-        }, 10000);
-        autoBtn.textContent = 'Auto-Refresh: ON (10s)';
-      }
-    });
-
-    // Initial load
     loadScoreboard();
   </script>
 </body>
