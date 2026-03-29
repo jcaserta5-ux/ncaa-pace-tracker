@@ -1,46 +1,62 @@
 export async function onRequest(context) {
-  const { request } = context;
-  const url = new URL(request.url);
+  try {
+    const url = new URL(context.request.url);
+    const date = url.searchParams.get("date");
 
-  // Query params: ?sport=basketball-men&division=d1&date=2025-03-21
-  const sport = url.searchParams.get('sport') || 'basketball-men';
-  const division = url.searchParams.get('division') || 'd1';
-  const date = url.searchParams.get('date'); // YYYY-MM-DD
+    if (!date) {
+      return new Response(
+        JSON.stringify({ error: "Missing ?date=YYYY-MM-DD" }),
+        { status: 400 }
+      );
+    }
 
-  let yyyy, mm, dd;
+    // ESPN requires YYYYMMDD format
+    const compactDate = date.replace(/-/g, "");
 
-  if (date) {
-    [yyyy, mm, dd] = date.split('-');
-  } else {
-    const now = new Date();
-    yyyy = now.getFullYear().toString();
-    mm = String(now.getMonth() + 1).padStart(2, '0');
-    dd = String(now.getDate()).padStart(2, '0');
-  }
+    // --- Upstream URLs ---
+    const REGULAR_URL =
+      `https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=${compactDate}`;
 
-  const upstream = `https://data.ncaa.com/casablanca/scoreboard/${sport}/${division}/${yyyy}/${mm}/${dd}/scoreboard.json`;
+    const TOURNAMENT_URL =
+      `https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=${compactDate}&groups=50`;
 
-  const res = await fetch(upstream, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0',
-      'Accept': 'application/json,text/plain,*/*',
-    },
-  });
+    // --- Fetch both in parallel ---
+    const [regularRes, tourneyRes] = await Promise.all([
+      fetch(REGULAR_URL),
+      fetch(TOURNAMENT_URL)
+    ]);
 
-  if (!res.ok) {
+    const regularJSON = regularRes.ok ? await regularRes.json() : { events: [] };
+    const tourneyJSON = tourneyRes.ok ? await tourneyRes.json() : { events: [] };
+
+    // ESPN uses "events" array for games
+    const regularGames = regularJSON.events || [];
+    const tourneyGames = tourneyJSON.events || [];
+
+    // --- Merge + dedupe by ESPN game ID ---
+    const mergedMap = new Map();
+
+    for (const g of [...regularGames, ...tourneyGames]) {
+      if (g?.id) mergedMap.set(g.id, g);
+    }
+
+    const mergedGames = Array.from(mergedMap.values());
+
     return new Response(
-      JSON.stringify({ error: 'Upstream error', status: res.status }),
-      { status: 502, headers: { 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        date,
+        count: mergedGames.length,
+        games: mergedGames
+      }),
+      {
+        headers: { "Content-Type": "application/json" }
+      }
+    );
+
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ error: "Server error", details: err.message }),
+      { status: 500 }
     );
   }
-
-  const data = await res.text(); // pass-through
-  return new Response(data, {
-    status: 200,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store',
-      'Access-Control-Allow-Origin': '*',
-    },
-  });
 }
