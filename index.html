@@ -242,204 +242,172 @@
 
   <div id="scoreboard"></div>
 
-    <script>
-    let autoRefresh = null;
+   <script>
+  let autoRefresh = null;
 
-    // userBets[gameId] = { full: { line, side }, half1: {...}, half2: {...} }
-    const userBets = {};
-    const teamStatsCache = {}; // teamId -> { pace, ppp, expectedTotal }
-    const scoreboardGames = {}; // gameId -> latest scoreboard game object
+  // userBets[gameId] = { full: { line, side }, half1: {...}, half2: {...} }
+  const userBets = {};
+  const teamStatsCache = {};
+  const scoreboardGames = {};
 
-    function initDate() {
-      const input = document.getElementById("dateInput");
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, "0");
-      const dd = String(today.getDate()).padStart(2, "0");
-      input.value = `${yyyy}-${mm}-${dd}`;
+  function initDate() {
+    const input = document.getElementById("dateInput");
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    input.value = `${yyyy}-${mm}-${dd}`;
+  }
+
+  function getProjectionMethod() {
+    const radios = document.querySelectorAll('input[name="projectionMethod"]');
+    for (const r of radios) if (r.checked) return r.value;
+    return "pace";
+  }
+
+  async function loadScoreboard() {
+    const date = document.getElementById("dateInput").value;
+    const res = await fetch(`/api/scoreboard?date=${date}`);
+
+    if (!res.ok) {
+      document.getElementById("scoreboard").innerHTML =
+        `<p>Error loading scoreboard: HTTP ${res.status}</p>`;
+      return;
     }
 
-    function getProjectionMethod() {
-      const radios = document.querySelectorAll('input[name="projectionMethod"]');
-      for (const r of radios) {
-        if (r.checked) return r.value;
+    const data = await res.json();
+    renderScoreboard(data.games || []);
+  }
+
+  function toggleAutoRefresh() {
+    const btn = document.getElementById("refreshToggleBtn");
+    if (autoRefresh) {
+      clearInterval(autoRefresh);
+      autoRefresh = null;
+      btn.textContent = "Resume Auto-Refresh";
+    } else {
+      autoRefresh = setInterval(loadScoreboard, 15000);
+      btn.textContent = "Pause Auto-Refresh";
+    }
+  }
+
+  function renderScoreboard(games) {
+    const container = document.getElementById("scoreboard");
+    container.innerHTML = "";
+    Object.keys(scoreboardGames).forEach(k => delete scoreboardGames[k]);
+
+    games.forEach(game => {
+      scoreboardGames[game.id] = game;
+
+      const comp = game.competitions?.[0];
+      const teams = comp?.competitors || [];
+
+      const home = teams.find(t => t.homeAway === "home") || teams[0];
+      const away = teams.find(t => t.homeAway === "away") || teams[1];
+
+      const homeName = home?.team?.shortDisplayName || home?.team?.displayName || "Home";
+      const awayName = away?.team?.shortDisplayName || away?.team?.displayName || "Away";
+
+      const homeScore = home?.score ?? "";
+      const awayScore = away?.score ?? "";
+
+      const homeLogo = home?.team?.logo || "";
+      const awayLogo = away?.team?.logo || "";
+
+      const statusText = comp?.status?.type?.shortDetail || "Scheduled";
+      const isLive = comp?.status?.type?.state === "in";
+
+      const state = extractGameStateFromScoreboard(game);
+      const currentTotal = state.currentTotal ?? "";
+      let currentPace = "";
+      if (state.minutesPlayed && state.minutesPlayed > 0 && state.currentTotal != null) {
+        currentPace = String(Math.round(state.currentTotal * (40 / state.minutesPlayed)));
       }
-      return "pace";
-    }
 
-    async function loadScoreboard() {
-      const date = document.getElementById("dateInput").value;
-      const res = await fetch(`/api/scoreboard?date=${date}`);
+      const card = document.createElement("div");
+      card.className = "game-card";
+      card.dataset.gameId = game.id;
 
-      if (!res.ok) {
-        document.getElementById("scoreboard").innerHTML =
-          `<p>Error loading scoreboard: HTTP ${res.status}</p>`;
-        return;
-      }
-
-      const data = await res.json();
-      renderScoreboard(data.games || []);
-    }
-
-    function toggleAutoRefresh() {
-      const btn = document.getElementById("refreshToggleBtn");
-      if (autoRefresh) {
-        clearInterval(autoRefresh);
-        autoRefresh = null;
-        btn.textContent = "Resume Auto-Refresh";
-      } else {
-        autoRefresh = setInterval(loadScoreboard, 15000);
-        btn.textContent = "Pause Auto-Refresh";
-      }
-    }
-
-    function renderScoreboard(games) {
-      const container = document.getElementById("scoreboard");
-      container.innerHTML = "";
-      Object.keys(scoreboardGames).forEach(k => delete scoreboardGames[k]);
-
-      games.forEach(game => {
-        scoreboardGames[game.id] = game;
-
-        const comp = game.competitions?.[0];
-        const teams = comp?.competitors || [];
-
-        const home = teams.find(t => t.homeAway === "home") || teams[0];
-        const away = teams.find(t => t.homeAway === "away") || teams[1];
-
-        const homeName = home?.team?.shortDisplayName || home?.team?.displayName || "Home";
-        const awayName = away?.team?.shortDisplayName || away?.team?.displayName || "Away";
-
-        const homeScore = home?.score ?? "";
-        const awayScore = away?.score ?? "";
-
-        const homeLogo = home?.team?.logo || "";
-        const awayLogo = away?.team?.logo || "";
-
-        const statusText = comp?.status?.type?.shortDetail || "Scheduled";
-        const isLive = comp?.status?.type?.state === "in";
-
-        const state = extractGameStateFromScoreboard(game);
-        const currentTotal = state.currentTotal ?? "";
-        let currentPace = "";
-        if (state.minutesPlayed && state.minutesPlayed > 0 && state.currentTotal != null) {
-          currentPace = String(Math.round(state.currentTotal * (40 / state.minutesPlayed)));
-        }
-
-        const card = document.createElement("div");
-        card.className = "game-card";
-        card.dataset.gameId = game.id;
-
-        const headerHtml = `
-          <div class="game-main-row">
-            <div class="teams-column">
-              <div class="team-line">
-                <div class="team-name">
-                  ${awayLogo ? `<img class="team-logo" src="${awayLogo}" alt="">` : ""}
-                  <span>${awayName}</span>
-                </div>
-                <div class="team-score">${awayScore}</div>
+      const headerHtml = `
+        <div class="game-main-row">
+          <div class="teams-column">
+            <div class="team-line">
+              <div class="team-name">
+                ${awayLogo ? `<img class="team-logo" src="${awayLogo}" alt="">` : ""}
+                <span>${awayName}</span>
               </div>
-              <div class="team-line">
-                <div class="team-name">
-                  ${homeLogo ? `<img class="team-logo" src="${homeLogo}" alt="">` : ""}
-                  <span>${homeName}</span>
-                </div>
-                <div class="team-score">${homeScore}</div>
-              </div>
+              <div class="team-score">${awayScore}</div>
             </div>
-            <div class="metrics-column">
-              <div class="metric-line">
-                <span class="metric-label">Total:</span>
-                <span class="metric-value" id="metric-total-${game.id}">
-                  ${currentTotal === "" ? "-" : currentTotal}
-                </span>
+            <div class="team-line">
+              <div class="team-name">
+                ${homeLogo ? `<img class="team-logo" src="${homeLogo}" alt="">` : ""}
+                <span>${homeName}</span>
               </div>
-              <div class="metric-line">
-                <span class="metric-label">Pace:</span>
-                <span class="metric-value" id="metric-pace-${game.id}">
-                  ${currentPace === "" ? "-" : currentPace}
-                </span>
-              </div>
+              <div class="team-score">${homeScore}</div>
             </div>
           </div>
-          <div class="status ${isLive ? "live" : ""}">${statusText}</div>
-        `;
-
-        const ouHtml = `
-          <div class="ou-section">
-            <div class="ou-row">
-              <label>Game O/U</label>
-              <input id="line-full-${game.id}" type="text" placeholder="Total"
-                     oninput="updateUserBet('${game.id}','full','line',this.value)" />
-              <select id="side-full-${game.id}" onchange="updateUserBet('${game.id}','full','side',this.value)">
-                <option value="">Side</option>
-                <option value="over">Over</option>
-                <option value="under">Under</option>
-              </select>
-              <span id="trend-full-${game.id}" class="trend-dot"></span>
+          <div class="metrics-column">
+            <div class="metric-line">
+              <span class="metric-label">Total:</span>
+              <span class="metric-value" id="metric-total-${game.id}">
+                ${currentTotal === "" ? "-" : currentTotal}
+              </span>
             </div>
-
-            <div class="ou-row">
-              <label>1H O/U</label>
-              <input id="line-half1-${game.id}" type="text" placeholder="Total"
-                     oninput="updateUserBet('${game.id}','half1','line',this.value)" />
-              <select id="side-half1-${game.id}" onchange="updateUserBet('${game.id}','half1','side',this.value)">
-                <option value="">Side</option>
-                <option value="over">Over</option>
-                <option value="under">Under</option>
-              </select>
-              <span id="trend-half1-${game.id}" class="trend-dot"></span>
-            </div>
-
-            <div class="ou-row">
-              <label>2H O/U</label>
-              <input id="line-half2-${game.id}" type="text" placeholder="Total"
-                     oninput="updateUserBet('${game.id}','half2','line',this.value)" />
-              <select id="side-half2-${game.id}" onchange="updateUserBet('${game.id}','half2','side',this.value)">
-                <option value="">Side</option>
-                <option value="over">Over</option>
-                <option value="under">Under</option>
-              </select>
-              <span id="trend-half2-${game.id}" class="trend-dot"></span>
+            <div class="metric-line">
+              <span class="metric-label">Pace:</span>
+              <span class="metric-value" id="metric-pace-${game.id}">
+                ${currentPace === "" ? "-" : currentPace}
+              </span>
             </div>
           </div>
-        `;
+        </div>
+        <div class="status ${isLive ? "live" : ""}">${statusText}</div>
+      `;
 
-        card.innerHTML = headerHtml + ouHtml;
-        container.appendChild(card);
+      const ouHtml = `
+        <div class="ou-section">
+          <div class="ou-row">
+            <label>Game O/U</label>
+            <input id="line-full-${game.id}" type="text" placeholder="Total"
+                   oninput="updateUserBet('${game.id}','full','line',this.value)" />
+            <select id="side-full-${game.id}" onchange="updateUserBet('${game.id}','full','side',this.value)">
+              <option value="">Side</option>
+              <option value="over">Over</option>
+              <option value="under">Under</option>
+            </select>
+            <span id="trend-full-${game.id}" class="trend-dot"></span>
+          </div>
 
-        // ensure userBets entry exists
-        if (!userBets[game.id]) {
-          userBets[game.id] = {
-            full: { line: "", side: "" },
-            half1: { line: "", side: "" },
-            half2: { line: "", side: "" }
-          };
-        }
+          <div class="ou-row">
+            <label>1H O/U</label>
+            <input id="line-half1-${game.id}" type="text" placeholder="Total"
+                   oninput="updateUserBet('${game.id}','half1','line',this.value)" />
+            <select id="side-half1-${game.id}" onchange="updateUserBet('${game.id}','half1','side',this.value)">
+              <option value="">Side</option>
+              <option value="over">Over</option>
+              <option value="under">Under</option>
+            </select>
+            <span id="trend-half1-${game.id}" class="trend-dot"></span>
+          </div>
 
-        // repopulate user inputs from userBets
-        const bets = userBets[game.id];
+          <div class="ou-row">
+            <label>2H O/U</label>
+            <input id="line-half2-${game.id}" type="text" placeholder="Total"
+                   oninput="updateUserBet('${game.id}','half2','line',this.value)" />
+            <select id="side-half2-${game.id}" onchange="updateUserBet('${game.id}','half2','side',this.value)">
+              <option value="">Side</option>
+              <option value="over">Over</option>
+              <option value="under">Under</option>
+            </select>
+            <span id="trend-half2-${game.id}" class="trend-dot"></span>
+          </div>
+        </div>
+      `;
 
-        const fullLine = document.getElementById(`line-full-${game.id}`);
-        const fullSide = document.getElementById(`side-full-${game.id}`);
-        const h1Line = document.getElementById(`line-half1-${game.id}`);
-        const h1Side = document.getElementById(`side-half1-${game.id}`);
-        const h2Line = document.getElementById(`line-half2-${game.id}`);
-        const h2Side = document.getElementById(`side-half2-${game.id}`);
+      card.innerHTML = headerHtml + ouHtml;
+      container.appendChild(card);
 
-        if (fullLine) fullLine.value = bets.full.line || "";
-        if (fullSide) fullSide.value = bets.full.side || "";
-        if (h1Line) h1Line.value = bets.half1.line || "";
-        if (h1Side) h1Side.value = bets.half1.side || "";
-        if (h2Line) h2Line.value = bets.half2.line || "";
-        if (h2Side) h2Side.value = bets.half2.side || "";
-      });
-
-      updateAllTrends();
-    }
-
-    function updateUserBet(gameId, segment, field, value) {
+      // ensure userBets entry exists
       if (!userBets[game.id]) {
         userBets[game.id] = {
           full: { line: "", side: "" },
@@ -447,226 +415,248 @@
           half2: { line: "", side: "" }
         };
       }
-      userBets[gameId][segment][field] = value;
+
+      // ⭐ repopulate user inputs from userBets
+      const bets = userBets[game.id];
+
+      document.getElementById(`line-full-${game.id}`).value = bets.full.line || "";
+      document.getElementById(`side-full-${game.id}`).value = bets.full.side || "";
+
+      document.getElementById(`line-half1-${game.id}`).value = bets.half1.line || "";
+      document.getElementById(`side-half1-${game.id}`).value = bets.half1.side || "";
+
+      document.getElementById(`line-half2-${game.id}`).value = bets.half2.line || "";
+      document.getElementById(`side-half2-${game.id}`).value = bets.half2.side || "";
+    });
+
+    updateAllTrends();
+  }
+
+  function updateUserBet(gameId, segment, field, value) {
+    if (!userBets[gameId]) {
+      userBets[gameId] = {
+        full: { line: "", side: "" },
+        half1: { line: "", side: "" },
+        half2: { line: "", side: "" }
+      };
+    }
+    userBets[gameId][segment][field] = value;
+    const game = scoreboardGames[gameId];
+    if (game) updateTrendForGame(gameId, game);
+  }
+
+  function updateAllTrends() {
+    Object.keys(userBets).forEach(gameId => {
       const game = scoreboardGames[gameId];
       if (game) updateTrendForGame(gameId, game);
+    });
+  }
+
+  async function updateTrendForGame(gameId, game) {
+    const bets = userBets[gameId];
+    if (!bets) return;
+
+    const state = extractGameStateFromScoreboard(game);
+    if (!state) return;
+
+    const method = getProjectionMethod();
+
+    if (method === "curve") {
+      await ensureTeamStatsFromGame(game);
     }
 
-    function updateAllTrends() {
-      Object.keys(userBets).forEach(gameId => {
-        const game = scoreboardGames[gameId];
-        if (game) updateTrendForGame(gameId, game);
-      });
+    const totalEl = document.getElementById(`metric-total-${gameId}`);
+    const paceEl = document.getElementById(`metric-pace-${gameId}`);
+    if (totalEl && state.currentTotal != null) {
+      totalEl.textContent = state.currentTotal;
+    }
+    if (paceEl && state.minutesPlayed && state.minutesPlayed > 0 && state.currentTotal != null) {
+      const pace = Math.round(state.currentTotal * (40 / state.minutesPlayed));
+      paceEl.textContent = pace;
     }
 
-    async function updateTrendForGame(gameId, game) {
-      const bets = userBets[gameId];
-      if (!bets) return;
+    applyTrendDot(gameId, "full", bets.full, state, method);
+    applyTrendDot(gameId, "half1", bets.half1, state, method, "first");
+    applyTrendDot(gameId, "half2", bets.half2, state, method, "second");
+  }
 
-      const state = extractGameStateFromScoreboard(game);
-      if (!state) return;
+  function applyTrendDot(gameId, segmentKey, bet, state, method, halfSegment) {
+    const dot = document.getElementById(`trend-${segmentKey}-${gameId}`);
+    if (!dot) return;
 
-      const method = getProjectionMethod();
+    dot.classList.remove("green", "red");
 
-      if (method === "curve") {
-        await ensureTeamStatsFromGame(game);
-      }
+    const line = parseFloat(bet.line);
+    const side = bet.side;
 
-      // update metrics column live
-      const totalEl = document.getElementById(`metric-total-${gameId}`);
-      const paceEl = document.getElementById(`metric-pace-${gameId}`);
-      if (totalEl && state.currentTotal != null) {
-        totalEl.textContent = state.currentTotal;
-      }
-      if (paceEl && state.minutesPlayed && state.minutesPlayed > 0 && state.currentTotal != null) {
-        const pace = Math.round(state.currentTotal * (40 / state.minutesPlayed));
-        paceEl.textContent = pace;
-      }
-
-      applyTrendDot(gameId, "full", bets.full, state, method);
-      applyTrendDot(gameId, "half1", bets.half1, state, method, "first");
-      applyTrendDot(gameId, "half2", bets.half2, state, method, "second");
+    if (!line || !side || !state.minutesPlayed || state.currentTotal == null) {
+      return;
     }
 
-    function applyTrendDot(gameId, segmentKey, bet, state, method, halfSegment) {
-      const dot = document.getElementById(`trend-${segmentKey}-${gameId}`);
-      if (!dot) return;
-
-      dot.classList.remove("green", "red");
-
-      const line = parseFloat(bet.line);
-      const side = bet.side;
-
-      if (!line || !side || !state.minutesPlayed || state.currentTotal == null) {
-        return;
-      }
-
-      let projected;
-      if (method === "pace") {
-        projected = projectTotalPaceBased(state, segmentKey, halfSegment);
-      } else {
-        projected = projectTotalCurveBased(state, segmentKey, halfSegment);
-      }
-
-      if (projected == null) return;
-
-      const isOver = side === "over";
-      const good = isOver ? projected > line : projected < line;
-
-      if (good) {
-        dot.classList.add("green");
-      } else {
-        dot.classList.add("red");
-      }
+    let projected;
+    if (method === "pace") {
+      projected = projectTotalPaceBased(state, segmentKey, halfSegment);
+    } else {
+      projected = projectTotalCurveBased(state, segmentKey, halfSegment);
     }
 
-    // ---- Projection A: Pace-based ----
-    function projectTotalPaceBased(state, segmentKey, halfSegment) {
-      const { minutesPlayed, currentTotal } = state;
-      if (minutesPlayed <= 0) return null;
+    if (projected == null) return;
 
-      if (segmentKey === "full") {
-        return currentTotal * (40 / minutesPlayed);
-      }
+    const isOver = side === "over";
+    const good = isOver ? projected > line : projected < line;
 
-      if (halfSegment === "first") {
-        if (minutesPlayed > 20) return null;
-        return currentTotal * (20 / minutesPlayed);
-      }
+    if (good) dot.classList.add("green");
+    else dot.classList.add("red");
+  }
 
-      if (halfSegment === "second") {
-        if (minutesPlayed <= 20) return null;
-        const minutesInSecond = minutesPlayed - 20;
-        if (minutesInSecond <= 0) return null;
-        const rate = currentTotal / minutesPlayed;
-        return rate * 20;
-      }
+  // ---- Projection A: Pace-based ----
+  function projectTotalPaceBased(state, segmentKey, halfSegment) {
+    const { minutesPlayed, currentTotal } = state;
+    if (minutesPlayed <= 0) return null;
 
+    if (segmentKey === "full") {
+      return currentTotal * (40 / minutesPlayed);
+    }
+
+    if (halfSegment === "first") {
+      if (minutesPlayed > 20) return null;
+      return currentTotal * (20 / minutesPlayed);
+    }
+
+    if (halfSegment === "second") {
+      if (minutesPlayed <= 20) return null;
+      const minutesInSecond = minutesPlayed - 20;
+      if (minutesInSecond <= 0) return null;
+      const rate = currentTotal / minutesPlayed;
+      return rate * 20;
+    }
+
+    return null;
+  }
+
+  // ---- Projection C2: Team-adjusted curve ----
+  function projectTotalCurveBased(state, segmentKey, halfSegment) {
+    const { minutesPlayed, currentTotal, homeTeamId, awayTeamId } = state;
+    if (minutesPlayed <= 0) return null;
+
+    const homeStats = teamStatsCache[homeTeamId];
+    const awayStats = teamStatsCache[awayTeamId];
+    if (!homeStats || !awayStats) return null;
+
+    const expectedTotalFull = homeStats.expectedTotal + awayStats.expectedTotal;
+
+    let expectedAtMinute;
+    if (segmentKey === "full") {
+      expectedAtMinute = expectedTotalFull * (minutesPlayed / 40);
+    } else if (halfSegment === "first") {
+      if (minutesPlayed > 20) return null;
+      const expectedFirstHalf = expectedTotalFull * 0.5;
+      expectedAtMinute = expectedFirstHalf * (minutesPlayed / 20);
+    } else if (halfSegment === "second") {
+      if (minutesPlayed <= 20) return null;
+      const minutesInSecond = minutesPlayed - 20;
+      if (minutesInSecond <= 0) return null;
+      const expectedSecondHalf = expectedTotalFull * 0.5;
+      expectedAtMinute = expectedSecondHalf * (minutesInSecond / 20);
+    } else {
       return null;
     }
 
-    // ---- Projection C2: Team-adjusted curve ----
-    function projectTotalCurveBased(state, segmentKey, halfSegment) {
-      const { minutesPlayed, currentTotal, homeTeamId, awayTeamId } = state;
-      if (minutesPlayed <= 0) return null;
+    const ratio = currentTotal / Math.max(expectedAtMinute, 1e-6);
+    const impliedFinal = expectedTotalFull * ratio;
+    return impliedFinal;
+  }
 
-      const homeStats = teamStatsCache[homeTeamId];
-      const awayStats = teamStatsCache[awayTeamId];
-      if (!homeStats || !awayStats) return null;
-
-      const expectedTotalFull = homeStats.expectedTotal + awayStats.expectedTotal;
-
-      let expectedAtMinute;
-      if (segmentKey === "full") {
-        expectedAtMinute = expectedTotalFull * (minutesPlayed / 40);
-      } else if (halfSegment === "first") {
-        if (minutesPlayed > 20) return null;
-        const expectedFirstHalf = expectedTotalFull * 0.5;
-        expectedAtMinute = expectedFirstHalf * (minutesPlayed / 20);
-      } else if (halfSegment === "second") {
-        if (minutesPlayed <= 20) return null;
-        const minutesInSecond = minutesPlayed - 20;
-        if (minutesInSecond <= 0) return null;
-        const expectedSecondHalf = expectedTotalFull * 0.5;
-        expectedAtMinute = expectedSecondHalf * (minutesInSecond / 20);
-      } else {
-        return null;
-      }
-
-      const ratio = currentTotal / Math.max(expectedAtMinute, 1e-6);
-      const impliedFinal = expectedTotalFull * ratio;
-      return impliedFinal;
-    }
-
-    // ---- Helpers: state + team stats ----
-    function extractGameStateFromScoreboard(game) {
-      try {
-        const comp = game.competitions?.[0];
-        const teams = comp?.competitors || [];
-        const away = teams.find(t => t.homeAway === "away") || teams[0];
-        const home = teams.find(t => t.homeAway === "home") || teams[1];
-
-        const homeTeamId = home?.team?.id;
-        const awayTeamId = away?.team?.id;
-
-        const homeScore = Number(home?.score ?? 0);
-        const awayScore = Number(away?.score ?? 0);
-        const currentTotal = homeScore + awayScore;
-
-        const status = comp?.status;
-        const period = status?.period || 1;
-        const clockStr = status?.displayClock || "0:00";
-
-        const [minStr, secStr] = clockStr.split(":");
-        const clockMinutes = parseInt(minStr || "0", 10);
-        const clockSeconds = parseInt(secStr || "0", 10);
-
-        let minutesPlayed;
-        if (period === 1) {
-          minutesPlayed = 20 - (clockMinutes + clockSeconds / 60);
-        } else if (period === 2) {
-          minutesPlayed = 20 + (20 - (clockMinutes + clockSeconds / 60));
-        } else if (period > 2) {
-          minutesPlayed = 40 + (5 * (period - 3)) - (clockMinutes + clockSeconds / 60);
-        } else {
-          minutesPlayed = 0;
-        }
-
-        return {
-          minutesPlayed,
-          currentTotal,
-          homeTeamId,
-          awayTeamId
-        };
-      } catch {
-        return null;
-      }
-    }
-
-    async function ensureTeamStatsFromGame(game) {
+  // ---- Helpers: state + team stats ----
+  function extractGameStateFromScoreboard(game) {
+    try {
       const comp = game.competitions?.[0];
       const teams = comp?.competitors || [];
       const away = teams.find(t => t.homeAway === "away") || teams[0];
       const home = teams.find(t => t.homeAway === "home") || teams[1];
 
-      const ids = [away?.team?.id, home?.team?.id].filter(Boolean);
+      const homeTeamId = home?.team?.id;
+      const awayTeamId = away?.team?.id;
 
-      for (const id of ids) {
-        if (!id || teamStatsCache[id]) continue;
-        const stats = await fetchTeamStats(id);
-        if (stats) teamStatsCache[id] = stats;
+      const homeScore = Number(home?.score ?? 0);
+      const awayScore = Number(away?.score ?? 0);
+      const currentTotal = homeScore + awayScore;
+
+      const status = comp?.status;
+      const period = status?.period || 1;
+      const clockStr = status?.displayClock || "0:00";
+
+      const [minStr, secStr] = clockStr.split(":");
+      const clockMinutes = parseInt(minStr || "0", 10);
+      const clockSeconds = parseInt(secStr || "0", 10);
+
+      let minutesPlayed;
+      if (period === 1) {
+        minutesPlayed = 20 - (clockMinutes + clockSeconds / 60);
+      } else if (period === 2) {
+        minutesPlayed = 20 + (20 - (clockMinutes + clockSeconds / 60));
+      } else if (period > 2) {
+        minutesPlayed = 40 + (5 * (period - 3)) - (clockMinutes + clockSeconds / 60);
+      } else {
+        minutesPlayed = 0;
       }
+
+      return {
+        minutesPlayed,
+        currentTotal,
+        homeTeamId,
+        awayTeamId
+      };
+    } catch {
+      return null;
     }
+  }
 
-    async function fetchTeamStats(teamId) {
-      try {
-        const res = await fetch(`/api/team/${teamId}`);
-        if (!res.ok) return null;
-        const data = await res.json();
+  async function ensureTeamStatsFromGame(game) {
+    const comp = game.competitions?.[0];
+    const teams = comp?.competitors || [];
+    const away = teams.find(t => t.homeAway === "away") || teams[0];
+    const home = teams.find(t => t.homeAway === "home") || teams[1];
 
-        const ppg = Number(data.pointsPerGame ?? 0);
-        const fga = Number(data.fieldGoalsAttempted ?? 0);
-        const fta = Number(data.freeThrowsAttempted ?? 0);
-        const orb = Number(data.offensiveRebounds ?? 0);
-        const tov = Number(data.turnovers ?? 0);
-        const games = Number(data.gamesPlayed ?? 0) || 1;
+    const ids = [away?.team?.id, home?.team?.id].filter(Boolean);
 
-        const possessionsTotal = fga + tov + 0.44 * fta - orb;
-        const pace = possessionsTotal / games;
-        const ppp = ppg / Math.max(pace, 1e-6);
-
-        const expectedTotal = ppg; // per 40 minutes
-
-        return { pace, ppp, expectedTotal };
-      } catch {
-        return null;
-      }
+    for (const id of ids) {
+      if (!id || teamStatsCache[id]) continue;
+      const stats = await fetchTeamStats(id);
+      if (stats) teamStatsCache[id] = stats;
     }
+  }
 
-    // ---- init ----
-    initDate();
-    loadScoreboard();
-    autoRefresh = setInterval(loadScoreboard, 15000);
-  </script>
+  async function fetchTeamStats(teamId) {
+    try {
+      const res = await fetch(`/api/team/${teamId}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+
+      const ppg = Number(data.pointsPerGame ?? 0);
+      const fga = Number(data.fieldGoalsAttempted ?? 0);
+      const fta = Number(data.freeThrowsAttempted ?? 0);
+      const orb = Number(data.offensiveRebounds ?? 0);
+      const tov = Number(data.turnovers ?? 0);
+      const games = Number(data.gamesPlayed ?? 0) || 1;
+
+      const possessionsTotal = fga + tov + 0.44 * fta - orb;
+      const pace = possessionsTotal / games;
+      const ppp = ppg / Math.max(pace, 1e-6);
+
+      const expectedTotal = ppg; // per 40 minutes
+
+      return { pace, ppp, expectedTotal };
+    } catch {
+      return null;
+    }
+  }
+
+  // ---- init ----
+  initDate();
+  loadScoreboard();
+  autoRefresh = setInterval(loadScoreboard, 15000);
+</script>
 </body>
 </html>
+
