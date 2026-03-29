@@ -11,24 +11,37 @@
       color: #e6edf3;
       font-family: Arial, sans-serif;
       margin: 0;
-      padding: 20px;
+      padding: 16px;
     }
 
     h1 {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 12px;
+      font-size: 22px;
+    }
+
+    .top-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 16px;
     }
 
     .controls {
       display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
       justify-content: center;
-      gap: 10px;
-      margin-bottom: 20px;
     }
 
-    input {
-      padding: 8px;
-      font-size: 16px;
+    label {
+      font-size: 14px;
+    }
+
+    input[type="text"], select {
+      padding: 6px 8px;
+      font-size: 14px;
       border-radius: 4px;
       border: 1px solid #30363d;
       background: #161b22;
@@ -36,51 +49,99 @@
     }
 
     button {
-      padding: 8px 14px;
-      font-size: 16px;
+      padding: 6px 10px;
+      font-size: 14px;
       border-radius: 4px;
       border: none;
       cursor: pointer;
       background: #238636;
       color: white;
+      white-space: nowrap;
     }
 
     button:hover {
       background: #2ea043;
     }
 
+    .projection-toggle {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      font-size: 13px;
+      align-items: center;
+    }
+
+    .projection-toggle span {
+      font-weight: bold;
+    }
+
     #scoreboard {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 16px;
-      margin-top: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+      margin-top: 10px;
     }
 
     .game-card {
       background: #161b22;
       border: 1px solid #30363d;
       border-radius: 8px;
-      padding: 12px;
-      cursor: pointer;
+      padding: 10px;
       transition: transform 0.15s ease, border-color 0.15s ease;
     }
 
     .game-card:hover {
-      transform: scale(1.02);
+      transform: translateY(-1px);
       border-color: #58a6ff;
     }
 
-    .team-row {
+    .game-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+
+    .team-logo {
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      background: #0d1117;
+      object-fit: contain;
+    }
+
+    .team-names {
+      display: flex;
+      flex-direction: column;
+      font-size: 13px;
+    }
+
+    .team-line {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 6px;
-      font-size: 18px;
+      align-items: center;
+      font-size: 14px;
+      margin-bottom: 2px;
+    }
+
+    .team-name {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .team-score {
+      font-weight: bold;
+      min-width: 20px;
+      text-align: right;
     }
 
     .status {
-      margin-top: 8px;
-      font-size: 14px;
-      opacity: 0.8;
+      margin-top: 4px;
+      font-size: 12px;
+      opacity: 0.85;
     }
 
     .status.live {
@@ -88,13 +149,69 @@
       font-weight: bold;
     }
 
+    .ou-section {
+      margin-top: 8px;
+      border-top: 1px solid #30363d;
+      padding-top: 6px;
+      font-size: 12px;
+    }
+
+    .ou-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+
+    .ou-row label {
+      min-width: 55px;
+    }
+
+    .ou-row input[type="text"] {
+      width: 60px;
+      padding: 4px;
+      font-size: 12px;
+    }
+
+    .ou-row select {
+      padding: 3px 4px;
+      font-size: 12px;
+    }
+
+    .trend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #6e7681; /* neutral gray */
+      display: inline-block;
+      margin-left: 4px;
+    }
+
+    .trend-dot.green {
+      background: #2ea043;
+    }
+
+    .trend-dot.red {
+      background: #f85149;
+    }
+
     #game-json {
-      margin-top: 30px;
-      white-space: normal;
+      margin-top: 24px;
       background: #161b22;
       padding: 15px;
       border-radius: 8px;
       border: 1px solid #30363d;
+      white-space: normal;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      h1 {
+        font-size: 18px;
+      }
     }
   </style>
 </head>
@@ -102,20 +219,51 @@
 <body>
   <h1>NCAA D1 Men’s Live Scoreboard</h1>
 
-  <div class="controls">
-    <label>Date (YYYY-MM-DD):</label>
-    <input id="dateInput" type="text" value="2026-03-29" />
-    <button onclick="loadScoreboard()">Load Scoreboard</button>
-    <button onclick="toggleAutoRefresh()">Toggle Auto-Refresh (10s)</button>
+  <div class="top-bar">
+    <div class="controls">
+      <label for="dateInput">Date (YYYY-MM-DD):</label>
+      <input id="dateInput" type="text" value="2026-03-29" />
+      <button onclick="loadScoreboard()">Load</button>
+      <button onclick="toggleAutoRefresh()">Auto-Refresh (10s)</button>
+    </div>
+
+    <div class="projection-toggle">
+      <span>Projection Method:</span>
+      <label>
+        <input type="radio" name="projectionMethod" value="pace" checked onchange="updateAllTrends()" />
+        Pace-Based (A)
+      </label>
+      <label>
+        <input type="radio" name="projectionMethod" value="curve" onchange="updateAllTrends()" />
+        Team-Adjusted Curve (C2)
+      </label>
+    </div>
   </div>
 
   <div id="scoreboard"></div>
 
   <h2>Game Details</h2>
-  <div id="game-json">Click a game card to load details…</div>
+  <div id="game-json">Click a game header to load details…</div>
 
   <script>
     let autoRefresh = null;
+
+    // userBets[gameId] = {
+    //   full: { line, side }, half1: { line, side }, half2: { line, side }
+    // }
+    const userBets = {};
+
+    // cache for game details and team stats
+    const gameDetailsCache = {};
+    const teamStatsCache = {}; // key: teamId -> { pace, ppp, expectedTotal }
+
+    function getProjectionMethod() {
+      const radios = document.querySelectorAll('input[name="projectionMethod"]');
+      for (const r of radios) {
+        if (r.checked) return r.value;
+      }
+      return "pace";
+    }
 
     async function loadScoreboard() {
       const date = document.getElementById("dateInput").value;
@@ -128,7 +276,7 @@
       }
 
       const data = await res.json();
-      renderScoreboard(data.games);
+      renderScoreboard(data.games || []);
     }
 
     function toggleAutoRefresh() {
@@ -153,11 +301,14 @@
         const home = teams.find(t => t.homeAway === "home") || teams[0];
         const away = teams.find(t => t.homeAway === "away") || teams[1];
 
-        const homeName = home?.team?.displayName || "Home";
-        const awayName = away?.team?.displayName || "Away";
+        const homeName = home?.team?.shortDisplayName || home?.team?.displayName || "Home";
+        const awayName = away?.team?.shortDisplayName || away?.team?.displayName || "Away";
 
         const homeScore = home?.score ?? "";
         const awayScore = away?.score ?? "";
+
+        const homeLogo = home?.team?.logo || "";
+        const awayLogo = away?.team?.logo || "";
 
         const statusText = comp?.status?.type?.shortDetail || "Scheduled";
         const isLive = comp?.status?.type?.state === "in";
@@ -166,24 +317,356 @@
         card.className = "game-card";
         card.dataset.gameId = game.id;
 
-        card.innerHTML = `
-          <div class="team-row">
-            <span>${awayName}</span>
-            <span>${awayScore}</span>
+        // header (click to load details)
+        const headerHtml = `
+          <div class="game-header" onclick="loadGameDetails('${game.id}')">
+            <div class="team-line">
+              <div class="team-name">
+                ${awayLogo ? `<img class="team-logo" src="${awayLogo}" alt="">` : ""}
+                <span>${awayName}</span>
+              </div>
+              <div class="team-score">${awayScore}</div>
+            </div>
           </div>
-          <div class="team-row">
-            <span>${homeName}</span>
-            <span>${homeScore}</span>
+          <div class="game-header" onclick="loadGameDetails('${game.id}')">
+            <div class="team-line">
+              <div class="team-name">
+                ${homeLogo ? `<img class="team-logo" src="${homeLogo}" alt="">` : ""}
+                <span>${homeName}</span>
+              </div>
+              <div class="team-score">${homeScore}</div>
+            </div>
           </div>
           <div class="status ${isLive ? "live" : ""}">${statusText}</div>
         `;
 
-        card.addEventListener("click", () => loadGameDetails(game.id));
+        // O/U section
+        const ouHtml = `
+          <div class="ou-section">
+            <div class="ou-row">
+              <label>Game O/U</label>
+              <input type="text" placeholder="Total" 
+                     oninput="updateUserBet('${game.id}','full','line',this.value)" />
+              <select onchange="updateUserBet('${game.id}','full','side',this.value)">
+                <option value="">Side</option>
+                <option value="over">Over</option>
+                <option value="under">Under</option>
+              </select>
+              <span id="trend-full-${game.id}" class="trend-dot"></span>
+            </div>
+
+            <div class="ou-row">
+              <label>1H O/U</label>
+              <input type="text" placeholder="Total" 
+                     oninput="updateUserBet('${game.id}','half1','line',this.value)" />
+              <select onchange="updateUserBet('${game.id}','half1','side',this.value)">
+                <option value="">Side</option>
+                <option value="over">Over</option>
+                <option value="under">Under</option>
+              </select>
+              <span id="trend-half1-${game.id}" class="trend-dot"></span>
+            </div>
+
+            <div class="ou-row">
+              <label>2H O/U</label>
+              <input type="text" placeholder="Total" 
+                     oninput="updateUserBet('${game.id}','half2','line',this.value)" />
+              <select onchange="updateUserBet('${game.id}','half2','side',this.value)">
+                <option value="">Side</option>
+                <option value="over">Over</option>
+                <option value="under">Under</option>
+              </select>
+              <span id="trend-half2-${game.id}" class="trend-dot"></span>
+            </div>
+          </div>
+        `;
+
+        card.innerHTML = headerHtml + ouHtml;
         container.appendChild(card);
+
+        // ensure userBets structure exists
+        if (!userBets[game.id]) {
+          userBets[game.id] = {
+            full: { line: "", side: "" },
+            half1: { line: "", side: "" },
+            half2: { line: "", side: "" }
+          };
+        }
       });
+
+      // after rendering, try to update trends for any games with bets
+      updateAllTrends();
     }
 
-    // ⭐⭐⭐ ONLY THIS FUNCTION IS CHANGED ⭐⭐⭐
+    function updateUserBet(gameId, segment, field, value) {
+      if (!userBets[gameId]) {
+        userBets[gameId] = {
+          full: { line: "", side: "" },
+          half1: { line: "", side: "" },
+          half2: { line: "", side: "" }
+        };
+      }
+      userBets[gameId][segment][field] = value;
+      updateTrendForGame(gameId);
+    }
+
+    function updateAllTrends() {
+      Object.keys(userBets).forEach(gameId => updateTrendForGame(gameId));
+    }
+
+    async function updateTrendForGame(gameId) {
+      const bets = userBets[gameId];
+      if (!bets) return;
+
+      // need game details to know score, clock, etc.
+      const details = await getGameDetails(gameId);
+      if (!details) return;
+
+      const method = getProjectionMethod();
+
+      // compute current game state
+      const state = extractGameState(details);
+      if (!state) return;
+
+      // ensure team stats for C2
+      if (method === "curve") {
+        await ensureTeamStats(details);
+      }
+
+      // full game
+      applyTrendDot(gameId, "full", bets.full, state, method);
+      // 1H
+      applyTrendDot(gameId, "half1", bets.half1, state, method, "first");
+      // 2H
+      applyTrendDot(gameId, "half2", bets.half2, state, method, "second");
+    }
+
+    function applyTrendDot(gameId, segmentKey, bet, state, method, halfSegment) {
+      const dot = document.getElementById(`trend-${segmentKey}-${gameId}`);
+      if (!dot) return;
+
+      dot.classList.remove("green", "red");
+
+      const line = parseFloat(bet.line);
+      const side = bet.side;
+
+      if (!line || !side || !state.minutesPlayed || state.currentTotal == null) {
+        // not enough info
+        return;
+      }
+
+      let projected;
+
+      if (method === "pace") {
+        projected = projectTotalPaceBased(state, segmentKey, halfSegment);
+      } else {
+        projected = projectTotalCurveBased(state, segmentKey, halfSegment, gameId);
+      }
+
+      if (projected == null) return;
+
+      const isOver = side === "over";
+      let good;
+
+      if (isOver) {
+        good = projected > line;
+      } else {
+        good = projected < line;
+      }
+
+      if (good) {
+        dot.classList.add("green");
+      } else {
+        dot.classList.add("red");
+      }
+    }
+
+    // ---------- Projection A: Pace-based ----------
+    function projectTotalPaceBased(state, segmentKey, halfSegment) {
+      const { minutesPlayed, currentTotal } = state;
+      if (minutesPlayed <= 0) return null;
+
+      if (segmentKey === "full") {
+        return currentTotal * (40 / minutesPlayed);
+      }
+
+      // halves: assume 20 minutes per half
+      if (halfSegment === "first") {
+        if (minutesPlayed > 20) return null;
+        return currentTotal * (20 / minutesPlayed);
+      }
+
+      if (halfSegment === "second") {
+        if (minutesPlayed <= 20) return null;
+        const minutesInSecond = minutesPlayed - 20;
+        if (minutesInSecond <= 0) return null;
+        // we don't have separate half scoring, so approximate:
+        // assume scoring rate in second half equals overall so far
+        const rate = currentTotal / minutesPlayed;
+        return rate * 20;
+      }
+
+      return null;
+    }
+
+    // ---------- Projection C2: Team-adjusted curve ----------
+    function projectTotalCurveBased(state, segmentKey, halfSegment, gameId) {
+      const { minutesPlayed, currentTotal, homeTeamId, awayTeamId } = state;
+      if (minutesPlayed <= 0) return null;
+
+      const homeStats = teamStatsCache[homeTeamId];
+      const awayStats = teamStatsCache[awayTeamId];
+      if (!homeStats || !awayStats) return null;
+
+      const expectedTotalFull = homeStats.expectedTotal + awayStats.expectedTotal;
+
+      let expectedAtMinute;
+      if (segmentKey === "full") {
+        expectedAtMinute = expectedTotalFull * (minutesPlayed / 40);
+      } else if (halfSegment === "first") {
+        if (minutesPlayed > 20) return null;
+        const expectedFirstHalf = expectedTotalFull * 0.5;
+        expectedAtMinute = expectedFirstHalf * (minutesPlayed / 20);
+      } else if (halfSegment === "second") {
+        if (minutesPlayed <= 20) return null;
+        const minutesInSecond = minutesPlayed - 20;
+        if (minutesInSecond <= 0) return null;
+        const expectedSecondHalf = expectedTotalFull * 0.5;
+        expectedAtMinute = expectedSecondHalf * (minutesInSecond / 20);
+      } else {
+        return null;
+      }
+
+      // We don't actually need projected final total for curve-based;
+      // we just compare actual vs expected at this minute and then
+      // infer whether that favors over or under.
+      // To keep it consistent with the dot logic, we convert it to
+      // an implied final total:
+      const ratio = currentTotal / Math.max(expectedAtMinute, 1e-6);
+      const impliedFinal = expectedTotalFull * ratio;
+      return impliedFinal;
+    }
+
+    // ---------- Game details + team stats helpers ----------
+
+    async function getGameDetails(gameId) {
+      if (gameDetailsCache[gameId]) return gameDetailsCache[gameId];
+
+      const res = await fetch(`/api/game/${gameId}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      gameDetailsCache[gameId] = data;
+      return data;
+    }
+
+    function extractGameState(details) {
+      try {
+        const teams = details.teams || [];
+        const away = teams.find(t => t.homeAway === "away") || teams[0];
+        const home = teams.find(t => t.homeAway === "home") || teams[1];
+
+        const homeTeamId = home?.team?.id;
+        const awayTeamId = away?.team?.id;
+
+        // total score
+        let homeScore = 0;
+        let awayScore = 0;
+
+        if (details.source === "espn-v2") {
+          homeScore = Number(home?.score ?? 0);
+          awayScore = Number(away?.score ?? 0);
+        } else {
+          const boxTeams = details.boxscore?.teams || [];
+          const bAway = boxTeams.find(t => t.homeAway === "away");
+          const bHome = boxTeams.find(t => t.homeAway === "home");
+          awayScore = Number(bAway?.score ?? 0);
+          homeScore = Number(bHome?.score ?? 0);
+        }
+
+        const currentTotal = homeScore + awayScore;
+
+        // minutes played from clock/period if available
+        let minutesPlayed = null;
+        const period = details.period || details.status?.period || 1;
+        const clockStr = details.clock || details.status?.displayClock || "0:00";
+
+        const [minStr, secStr] = clockStr.split(":");
+        const clockMinutes = parseInt(minStr || "0", 10);
+        const clockSeconds = parseInt(secStr || "0", 10);
+
+        // assume 20-minute halves
+        if (period === 1) {
+          minutesPlayed = 20 - (clockMinutes + clockSeconds / 60);
+        } else if (period === 2) {
+          minutesPlayed = 20 + (20 - (clockMinutes + clockSeconds / 60));
+        } else if (period > 2) {
+          // simple OT handling: treat as 40+...
+          minutesPlayed = 40 + (5 * (period - 3)) - (clockMinutes + clockSeconds / 60);
+        } else {
+          minutesPlayed = 0;
+        }
+
+        return {
+          minutesPlayed,
+          currentTotal,
+          homeTeamId,
+          awayTeamId
+        };
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function ensureTeamStats(details) {
+      const teams = details.teams || [];
+      const away = teams.find(t => t.homeAway === "away") || teams[0];
+      const home = teams.find(t => t.homeAway === "home") || teams[1];
+
+      const ids = [
+        away?.team?.id,
+        home?.team?.id
+      ].filter(Boolean);
+
+      for (const id of ids) {
+        if (!id || teamStatsCache[id]) continue;
+        const stats = await fetchTeamStats(id);
+        if (stats) {
+          teamStatsCache[id] = stats;
+        }
+      }
+    }
+
+    async function fetchTeamStats(teamId) {
+      try {
+        // Backend should proxy ESPN and return a JSON like:
+        // { pointsPerGame, fieldGoalsAttempted, freeThrowsAttempted,
+        //   offensiveRebounds, turnovers, gamesPlayed }
+        const res = await fetch(`/api/team/${teamId}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+
+        const ppg = Number(data.pointsPerGame ?? 0);
+        const fga = Number(data.fieldGoalsAttempted ?? 0);
+        const fta = Number(data.freeThrowsAttempted ?? 0);
+        const orb = Number(data.offensiveRebounds ?? 0);
+        const tov = Number(data.turnovers ?? 0);
+        const games = Number(data.gamesPlayed ?? 0) || 1;
+
+        const possessionsTotal = fga + tov + 0.44 * fta - orb;
+        const pace = possessionsTotal / games;
+        const ppp = ppg / Math.max(pace, 1e-6);
+
+        // expected total for a 40-minute game for this team
+        const expectedTotal = ppg;
+
+        return { pace, ppp, expectedTotal };
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // ---------- Game details renderer (unchanged core, just reused) ----------
+
     async function loadGameDetails(id) {
       const res = await fetch(`/api/game/${id}`);
 
@@ -194,12 +677,12 @@
       }
 
       const data = await res.json();
+      gameDetailsCache[id] = data; // cache for projections
 
       const teams = data.teams || [];
       const away = teams.find(t => t.homeAway === "away") || teams[0];
       const home = teams.find(t => t.homeAway === "home") || teams[1];
 
-      // Scores
       let awayScore = "";
       let homeScore = "";
 
@@ -228,13 +711,13 @@
 
       document.getElementById("game-json").innerHTML = `
         <div style="display:flex;align-items:center;margin-bottom:10px;">
-          <img src="${away.team.logo}" style="width:40px;height:40px;margin-right:10px;">
+          ${away.team.logo ? `<img src="${away.team.logo}" style="width:40px;height:40px;margin-right:10px;">` : ""}
           <div>${away.team.name}</div>
           <div style="margin-left:auto;font-size:24px;font-weight:bold;">${awayScore}</div>
         </div>
 
         <div style="display:flex;align-items:center;margin-bottom:10px;">
-          <img src="${home.team.logo}" style="width:40px;height:40px;margin-right:10px;">
+          ${home.team.logo ? `<img src="${home.team.logo}" style="width:40px;height:40px;margin-right:10px;">` : ""}
           <div>${home.team.name}</div>
           <div style="margin-left:auto;font-size:24px;font-weight:bold;">${homeScore}</div>
         </div>
@@ -251,6 +734,9 @@
           ${pace ? `Estimated Pace: ${pace} possessions` : ""}
         </div>
       `;
+
+      // after loading details, update trends for this game (we now have better data)
+      updateTrendForGame(id);
     }
 
     function calcPoss(stats) {
