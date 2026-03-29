@@ -771,20 +771,27 @@
   /* ---------------------------------------------------------
      DATE CHANGE HANDLER
   --------------------------------------------------------- */
-  function onDateChange() {
-    const date = document.getElementById("dateInput").value;
-    loadScoreboardForDate(date);
-  }
+ function onDateChange() {
+  const date = document.getElementById("dateInput").value;
 
-  /* ---------------------------------------------------------
-     INIT
-  --------------------------------------------------------- */
-  document.getElementById("dateInput").addEventListener("change", onDateChange);
+  // ⭐ FULL RESET WHEN USER CHANGES DATE
+  clearInterval(autoRefresh);
+  autoRefresh = null;
 
-  initDate();
-  loadScoreboardForDate(lastSelectedDate);
+  // wipe all user inputs (we only preserve inputs when date stays the same)
+  Object.keys(userBets).forEach(k => delete userBets[k]);
+
+  // wipe all game state
+  currentGameIds.length = 0;
+  Object.keys(scoreboardGames).forEach(k => delete scoreboardGames[k]);
+
+  // clear UI immediately so no mixed dates appear
+  document.getElementById("scoreboard").innerHTML = "";
+
+  // load new date's games
+  loadScoreboardForDate(date);
+
+  // start a fresh 15-second refresh loop
   autoRefresh = setInterval(refreshScoreboard, 15000);
-</script>
+}
 
-</body>
-</html>
