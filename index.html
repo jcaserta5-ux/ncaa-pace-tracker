@@ -1,203 +1,234 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>NCAA D1 Men’s Live Scoreboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8" />
+<title>NCAA Pace Tracker</title>
+<style>
+  body {
+    background: #0b0e11;
+    color: #f5f5f5;
+    font-family: system-ui, sans-serif;
+    margin: 0;
+    padding: 20px;
+  }
 
-  <style>
-    body {
-      background: #0d1117;
-      color: #e6edf3;
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-    }
+  h1 { margin-top: 0; }
 
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
+  .scoreboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+    margin-top: 20px;
+  }
 
-    .controls {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
+  .game-card {
+    background: #161a1e;
+    padding: 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
 
-    input {
-      padding: 8px;
-      font-size: 16px;
-      border-radius: 4px;
-      border: 1px solid #30363d;
-      background: #161b22;
-      color: #e6edf3;
-    }
+  .game-card:hover {
+    background: #1f2429;
+    transform: translateY(-2px);
+  }
 
-    button {
-      padding: 8px 14px;
-      font-size: 16px;
-      border-radius: 4px;
-      border: none;
-      cursor: pointer;
-      background: #238636;
-      color: white;
-    }
+  .team-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+  }
 
-    button:hover {
-      background: #2ea043;
-    }
+  .team-row img {
+    width: 28px;
+    height: 28px;
+    margin-right: 8px;
+  }
 
-    #scoreboard {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 16px;
-      margin-top: 20px;
-    }
+  .team-score {
+    margin-left: auto;
+    font-weight: bold;
+  }
 
-    .game-card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 12px;
-      cursor: pointer;
-      transition: transform 0.15s ease, border-color 0.15s ease;
-    }
+  #gameDetails {
+    margin-top: 30px;
+    background: #111418;
+    padding: 20px;
+    border-radius: 12px;
+  }
 
-    .game-card:hover {
-      transform: scale(1.02);
-      border-color: #58a6ff;
-    }
+  .detail-team-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+  }
 
-    .team-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 6px;
-      font-size: 18px;
-    }
+  .detail-team-row img {
+    width: 48px;
+    height: 48px;
+    margin-right: 12px;
+  }
 
-    .status {
-      margin-top: 8px;
-      font-size: 14px;
-      opacity: 0.8;
-    }
+  .detail-score {
+    margin-left: auto;
+    font-size: 32px;
+    font-weight: bold;
+  }
 
-    .status.live {
-      color: #ff4d4d;
-      font-weight: bold;
-    }
-
-    #game-json {
-      margin-top: 30px;
-      white-space: pre-wrap;
-      background: #161b22;
-      padding: 15px;
-      border-radius: 8px;
-      border: 1px solid #30363d;
-    }
-  </style>
+  .status-line {
+    margin-top: 10px;
+    opacity: 0.8;
+  }
+</style>
 </head>
 
 <body>
-  <h1>NCAA D1 Men’s Live Scoreboard</h1>
 
-  <div class="controls">
-    <label>Date (YYYY-MM-DD):</label>
-    <input id="dateInput" type="text" value="2026-03-29" />
-    <button onclick="loadScoreboard()">Load Scoreboard</button>
-    <button onclick="toggleAutoRefresh()">Toggle Auto-Refresh (10s)</button>
-  </div>
+<h1>NCAA Pace Tracker</h1>
 
-  <div id="scoreboard"></div>
+<div id="scoreboard" class="scoreboard"></div>
 
-  <h2>Selected Game JSON</h2>
-  <pre id="game-json">Click a game card to load its full JSON…</pre>
+<div id="gameDetails"></div>
 
-  <script>
-    let autoRefresh = null;
+<script>
+// ------------------------------------------------------------
+// LOAD SCOREBOARD
+// ------------------------------------------------------------
+async function loadScoreboard() {
+  const res = await fetch("/api/scoreboard");
+  const data = await res.json();
 
-    async function loadScoreboard() {
-      const date = document.getElementById("dateInput").value;
-      const res = await fetch(`/api/scoreboard?date=${date}`);
+  const container = document.getElementById("scoreboard");
+  container.innerHTML = "";
 
-      if (!res.ok) {
-        document.getElementById("scoreboard").innerHTML =
-          `<p>Error loading scoreboard: HTTP ${res.status}</p>`;
-        return;
-      }
+  data.events.forEach(event => {
+    const comp = event.competitions[0];
+    const teams = comp.competitors;
 
-      const data = await res.json();
-      renderScoreboard(data.games);
-    }
+    const away = teams.find(t => t.homeAway === "away");
+    const home = teams.find(t => t.homeAway === "home");
 
-    function toggleAutoRefresh() {
-      if (autoRefresh) {
-        clearInterval(autoRefresh);
-        autoRefresh = null;
-        alert("Auto-refresh OFF");
-      } else {
-        autoRefresh = setInterval(loadScoreboard, 10000);
-        alert("Auto-refresh ON (10s)");
-      }
-    }
+    const card = document.createElement("div");
+    card.className = "game-card";
+    card.onclick = () => loadGame(event.id);
 
-    function renderScoreboard(games) {
-      const container = document.getElementById("scoreboard");
-      container.innerHTML = "";
+    card.innerHTML = `
+      <div class="team-row">
+        <img src="${away.team.logo}" />
+        <div>${away.team.shortDisplayName}</div>
+        <div class="team-score">${away.score ?? ""}</div>
+      </div>
 
-      games.forEach(game => {
-        const comp = game.competitions?.[0];
-        const teams = comp?.competitors || [];
+      <div class="team-row">
+        <img src="${home.team.logo}" />
+        <div>${home.team.shortDisplayName}</div>
+        <div class="team-score">${home.score ?? ""}</div>
+      </div>
+    `;
 
-        const home = teams.find(t => t.homeAway === "home") || teams[0];
-        const away = teams.find(t => t.homeAway === "away") || teams[1];
+    container.appendChild(card);
+  });
+}
 
-        const homeName = home?.team?.displayName || "Home";
-        const awayName = away?.team?.displayName || "Away";
+// ------------------------------------------------------------
+// LOAD GAME DETAILS (UNIFIED JSON)
+// ------------------------------------------------------------
+async function loadGame(id) {
+  const res = await fetch(`/api/game/${id}`);
+  const data = await res.json();
 
-        const homeScore = home?.score ?? "";
-        const awayScore = away?.score ?? "";
+  renderGameDetails(data);
+}
 
-        const statusText = comp?.status?.type?.shortDetail || "Scheduled";
-        const isLive = comp?.status?.type?.state === "in";
+// ------------------------------------------------------------
+// RENDER GAME DETAILS
+// ------------------------------------------------------------
+function renderGameDetails(data) {
+  const container = document.getElementById("gameDetails");
+  container.innerHTML = "";
 
-        const card = document.createElement("div");
-        card.className = "game-card";
-        card.dataset.gameId = game.id;
+  const teams = data.teams;
 
-        card.innerHTML = `
-          <div class="team-row">
-            <span>${awayName}</span>
-            <span>${awayScore}</span>
-          </div>
-          <div class="team-row">
-            <span>${homeName}</span>
-            <span>${homeScore}</span>
-          </div>
-          <div class="status ${isLive ? "live" : ""}">${statusText}</div>
-        `;
+  const away = teams.find(t => t.homeAway === "away");
+  const home = teams.find(t => t.homeAway === "home");
 
-        card.addEventListener("click", () => loadGameDetails(game.id));
-        container.appendChild(card);
-      });
-    }
+  // Scores (legacy or v2)
+  let awayScore = "";
+  let homeScore = "";
 
-    async function loadGameDetails(id) {
-      const res = await fetch(`/api/game/${id}`);
+  if (data.source === "espn-v2") {
+    awayScore = away.score ?? "";
+    homeScore = home.score ?? "";
+  } else {
+    const boxTeams = data.boxscore?.teams || [];
+    awayScore = boxTeams.find(t => t.homeAway === "away")?.score ?? "";
+    homeScore = boxTeams.find(t => t.homeAway === "home")?.score ?? "";
+  }
 
-      if (!res.ok) {
-        document.getElementById("game-json").textContent =
-          `Error loading game: HTTP ${res.status}`;
-        return;
-      }
+  // Live detection
+  const isLive = data.status?.includes("IN_PROGRESS");
 
-      const json = await res.json();
-      document.getElementById("game-json").textContent =
-        JSON.stringify(json, null, 2);
-    }
+  // Pace calculation
+  let pace = null;
+  if (data.boxscore?.teams?.length === 2) {
+    const t1 = data.boxscore.teams[0].statistics;
+    const t2 = data.boxscore.teams[1].statistics;
 
-    loadScoreboard();
-  </script>
+    const poss = (calcPoss(t1) + calcPoss(t2)) / 2;
+    pace = Math.round(poss);
+  }
+
+  container.innerHTML = `
+    <h2>Game Details</h2>
+
+    <div class="detail-team-row">
+      <img src="${away.team.logo}" />
+      <div>${away.team.name}</div>
+      <div class="detail-score">${awayScore}</div>
+    </div>
+
+    <div class="detail-team-row">
+      <img src="${home.team.logo}" />
+      <div>${home.team.name}</div>
+      <div class="detail-score">${homeScore}</div>
+    </div>
+
+    <div class="status-line">
+      ${isLive ? "LIVE • " : ""}
+      Status: ${data.status}
+    </div>
+
+    <div class="status-line">
+      ${pace ? `Estimated Pace: ${pace} possessions` : ""}
+    </div>
+  `;
+}
+
+// ------------------------------------------------------------
+// PACE CALCULATION
+// ------------------------------------------------------------
+function calcPoss(stats) {
+  if (!stats) return 0;
+
+  const get = name => {
+    const s = stats.find(x => x.name === name);
+    return s ? Number(s.displayValue) : 0;
+  };
+
+  const fga = get("fieldGoalsAttempted");
+  const to = get("turnovers");
+  const fta = get("freeThrowsAttempted");
+  const orb = get("offensiveRebounds");
+
+  return fga + to + 0.44 * fta - orb;
+}
+
+// ------------------------------------------------------------
+// INITIAL LOAD
+// ------------------------------------------------------------
+loadScoreboard();
+</script>
+
 </body>
 </html>
