@@ -171,17 +171,17 @@
       font-size: 15px;
     }
 
-    /* ⭐ KEEPING YOUR WORKING WIDTH */
-    .metrics-column {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 6px;
-      min-width: 150px;
-      text-align: right;
-      font-size: 15px;
-    }
-
+/* ⭐ FIXED WIDTH TO KEEP METRICS INSIDE THE TILE */
+.metrics-column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  width: 150px;       /* fixed width */
+  flex-shrink: 0;     /* prevents squeezing */
+  text-align: right;
+  font-size: 15px;
+}
     .pace-block {
       margin-top: 2px;
       font-size: 14px;
