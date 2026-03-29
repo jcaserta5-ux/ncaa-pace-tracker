@@ -1,4 +1,4 @@
-// redeploy
+// redeploy x2
 export async function onRequest(context) {
   try {
     const url = new URL(context.request.url);
