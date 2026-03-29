@@ -1,61 +1,63 @@
+// redeploy x3
 export async function onRequest(context) {
   try {
     const url = new URL(context.request.url);
-    const dateParam = url.searchParams.get("date"); // "YYYY-MM-DD"
+    const date = url.searchParams.get("date");
 
-    if (!dateParam || dateParam.length !== 10) {
-      return new Response(JSON.stringify({ error: "Missing or invalid date parameter" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" }
-      });
+    if (!date) {
+      return new Response(
+        JSON.stringify({ error: "Missing ?date=YYYY-MM-DD" }),
+        { status: 400 }
+      );
     }
 
-    // Frontend uses "YYYY-MM-DD"
-    const targetDate = dateParam; // keep this for filtering
+    // ESPN requires YYYYMMDD format
+    const compactDate = date.replace(/-/g, "");
 
-    // ESPN expects "YYYYMMDD"
-    const espnDate = dateParam.replace(/-/g, ""); // "YYYYMMDD"
+    // --- Upstream URLs ---
+    const REGULAR_URL =
+      `https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=${compactDate}`;
 
-    const espnUrl =
-      `https://site.web.api.espn.com/apis/v2/sports/basketball/mens-college-basketball/scoreboard?dates=${espnDate}`;
+    const TOURNAMENT_URL =
+      `https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=${compactDate}&groups=50`;
 
-    const espnRes = await fetch(espnUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0"
-      }
-    });
+    // --- Fetch both in parallel ---
+    const [regularRes, tourneyRes] = await Promise.all([
+      fetch(REGULAR_URL),
+      fetch(TOURNAMENT_URL)
+    ]);
 
-    if (!espnRes.ok) {
-      // Fail soft: return empty games so UI doesn't blow up
-      return new Response(JSON.stringify({ games: [] }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" }
-      });
+    const regularJSON = regularRes.ok ? await regularRes.json() : { events: [] };
+    const tourneyJSON = tourneyRes.ok ? await tourneyRes.json() : { events: [] };
+
+    // ESPN uses "events" array for games
+    const regularGames = regularJSON.events || [];
+    const tourneyGames = tourneyJSON.events || [];
+
+    // --- Merge + dedupe by ESPN game ID ---
+    const mergedMap = new Map();
+
+    for (const g of [...regularGames, ...tourneyGames]) {
+      if (g?.id) mergedMap.set(g.id, g);
     }
 
-    const espnData = await espnRes.json();
-    const events = espnData.events || [];
+    const mergedGames = Array.from(mergedMap.values());
 
-    // ⭐ STRICT DATE FILTER: only games that START on the requested date
-    const filtered = events.filter(event => {
-      if (!event.date) return false;
-      const eventDate = event.date.slice(0, 10); // "YYYY-MM-DD"
-      return eventDate === targetDate;
-    });
-
-    return new Response(JSON.stringify({ games: filtered }), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store"
+    return new Response(
+      JSON.stringify({
+        date,
+        count: mergedGames.length,
+        games: mergedGames
+      }),
+      {
+        headers: { "Content-Type": "application/json" }
       }
-    });
+    );
 
   } catch (err) {
-    // Fail soft here too
-    return new Response(JSON.stringify({ games: [] }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" }
-    });
+    return new Response(
+      JSON.stringify({ error: "Server error", details: err.message }),
+      { status: 500 }
+    );
   }
 }
