@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <title>NCAA Pace Tracker</title>
+
 <style>
   body {
     background: #0b0e11;
@@ -96,11 +97,16 @@
 // LOAD SCOREBOARD
 // ------------------------------------------------------------
 async function loadScoreboard() {
-  const res = await fetch("/api/scoreboard");
+  const res = await fetch("/api/scoreboard"); // now defaults to today
   const data = await res.json();
 
   const container = document.getElementById("scoreboard");
   container.innerHTML = "";
+
+  if (!data.events || data.events.length === 0) {
+    container.innerHTML = "<div>No games found for today.</div>";
+    return;
+  }
 
   data.events.forEach(event => {
     const comp = event.competitions[0];
@@ -169,6 +175,11 @@ function renderGameDetails(data) {
   // Live detection
   const isLive = data.status?.includes("IN_PROGRESS");
 
+  // Clock / period / possession (only available in v2)
+  const clock = data.clock || "";
+  const period = data.period || "";
+  const possession = data.possession || "";
+
   // Pace calculation
   let pace = null;
   if (data.boxscore?.teams?.length === 2) {
@@ -197,6 +208,9 @@ function renderGameDetails(data) {
     <div class="status-line">
       ${isLive ? "LIVE • " : ""}
       Status: ${data.status}
+      ${period ? ` • Period: ${period}` : ""}
+      ${clock ? ` • Clock: ${clock}` : ""}
+      ${possession ? ` • Possession: ${possession}` : ""}
     </div>
 
     <div class="status-line">
