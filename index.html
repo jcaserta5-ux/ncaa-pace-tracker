@@ -12,13 +12,13 @@
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 16px;
-      font-size: 15px; /* bumped */
+      font-size: 15px;
     }
 
     h1 {
       text-align: center;
       margin-bottom: 12px;
-      font-size: 24px; /* bumped */
+      font-size: 24px;
     }
 
     .top-bar {
@@ -37,12 +37,12 @@
     }
 
     label {
-      font-size: 15px; /* bumped */
+      font-size: 15px;
     }
 
     input[type="date"], input[type="text"], select {
       padding: 6px 8px;
-      font-size: 15px; /* bumped */
+      font-size: 15px;
       border-radius: 4px;
       border: 1px solid #30363d;
       background: #161b22;
@@ -51,7 +51,7 @@
 
     button {
       padding: 6px 10px;
-      font-size: 15px; /* bumped */
+      font-size: 15px;
       border-radius: 4px;
       border: none;
       cursor: pointer;
@@ -69,7 +69,7 @@
       flex-wrap: wrap;
       justify-content: center;
       gap: 10px;
-      font-size: 15px; /* bumped */
+      font-size: 15px;
       align-items: center;
     }
 
@@ -79,7 +79,7 @@
 
     #scoreboard {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
       gap: 14px;
       margin-top: 10px;
     }
@@ -88,9 +88,9 @@
       background: #161b22;
       border: 1px solid #30363d;
       border-radius: 8px;
-      padding: 12px; /* bumped */
+      padding: 12px;
       transition: transform 0.15s ease, border-color 0.15s ease;
-      font-size: 16px; /* bumped */
+      font-size: 16px;
     }
 
     .game-card:hover {
@@ -113,7 +113,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 17px; /* bumped */
+      font-size: 17px;
       margin-bottom: 4px;
     }
 
@@ -135,38 +135,69 @@
       font-weight: bold;
       min-width: 28px;
       text-align: right;
-      font-size: 20px; /* bumped */
+      font-size: 20px;
     }
 
-    /* ⭐ NEW: vertically aligned metrics */
+    /* RIGHT SIDE: period/clock + box score grid + pace */
     .metrics-column {
-      display: grid;
-      grid-template-rows: 1fr 1fr;   /* aligns Total with Away, Pace with Home */
-      justify-items: end;
-      align-items: center;
-      min-width: 120px;
-      text-align: right;
-      font-size: 17px; /* bumped */
-    }
-
-    .metric-line {
       display: flex;
-      justify-content: flex-end;
+      flex-direction: column;
+      align-items: flex-end;
       gap: 6px;
-      white-space: nowrap;
+      min-width: 150px;
+      text-align: right;
+      font-size: 15px;
     }
 
-    .metric-value {
-      display: inline-block;
-      min-width: 40px;
+    .period-clock {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .period-clock.live {
+      color: #ff4d4d;
+      font-weight: bold;
+    }
+
+    .box-grid {
+      display: grid;
+      grid-template-columns: auto 40px 40px 40px;
+      gap: 2px 6px;
+      font-size: 14px;
+      align-items: center;
+    }
+
+    .box-grid-header {
+      font-weight: bold;
+      opacity: 0.9;
+    }
+
+    .box-grid-team {
+      font-weight: 500;
+    }
+
+    .box-grid-total-label {
+      font-weight: bold;
+      opacity: 0.9;
+    }
+
+    .box-grid-cell {
       text-align: right;
       font-variant-numeric: tabular-nums;
-      font-size: 20px; /* bumped */
+    }
+
+    .pace-block {
+      margin-top: 2px;
+      font-size: 14px;
+    }
+
+    .pace-line {
+      white-space: nowrap;
     }
 
     .status {
       margin-top: 6px;
-      font-size: 15px; /* bumped */
+      font-size: 15px;
       opacity: 0.85;
     }
 
@@ -179,7 +210,7 @@
       margin-top: 10px;
       border-top: 1px solid #30363d;
       padding-top: 8px;
-      font-size: 15px; /* bumped */
+      font-size: 15px;
     }
 
     .ou-row {
@@ -197,12 +228,12 @@
     .ou-row input[type="text"] {
       width: 70px;
       padding: 4px;
-      font-size: 15px; /* bumped */
+      font-size: 15px;
     }
 
     .ou-row select {
       padding: 4px 6px;
-      font-size: 15px; /* bumped */
+      font-size: 15px;
     }
 
     .trend-dot {
@@ -220,6 +251,32 @@
 
     .trend-dot.red {
       background: #f85149;
+    }
+
+    /* Graphs under each O/U row */
+    .ou-graph {
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    .ou-graph canvas {
+      width: 100%;
+      height: 60px;
+      display: block;
+      border-radius: 4px;
+      background: #0d1117;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      h1 {
+        font-size: 20px;
+      }
+      .metrics-column {
+        min-width: 130px;
+      }
     }
   </style>
 </head>
@@ -249,6 +306,8 @@
 
   <div id="scoreboard"></div>
 
+  
+
    <script>
   let autoRefresh = null;
 
@@ -256,6 +315,8 @@
   const userBets = {};
   const teamStatsCache = {};
   const scoreboardGames = {};
+  // projectionHistory[gameId] = { full: [], half1: [], half2: [] }
+  const projectionHistory = {};
 
   function initDate() {
     const input = document.getElementById("dateInput");
@@ -321,15 +382,15 @@
       const homeLogo = home?.team?.logo || "";
       const awayLogo = away?.team?.logo || "";
 
-      const statusText = comp?.status?.type?.shortDetail || "Scheduled";
-      const isLive = comp?.status?.type?.state === "in";
+      const status = comp?.status;
+      const statusText = status?.type?.shortDetail || "Scheduled";
+      const isLive = status?.type?.state === "in";
 
       const state = extractGameStateFromScoreboard(game);
-      const currentTotal = state.currentTotal ?? "";
-      let currentPace = "";
-      if (state.minutesPlayed && state.minutesPlayed > 0 && state.currentTotal != null) {
-        currentPace = String(Math.round(state.currentTotal * (40 / state.minutesPlayed)));
-      }
+      const lines = extractLinescore(game);
+
+      const periodLabel = buildPeriodLabel(status?.period);
+      const clockStr = status?.displayClock || "0:00";
 
       const card = document.createElement("div");
       card.className = "game-card";
@@ -354,17 +415,32 @@
             </div>
           </div>
           <div class="metrics-column">
-            <div class="metric-line">
-              <span class="metric-label">Total:</span>
-              <span class="metric-value" id="metric-total-${game.id}">
-                ${currentTotal === "" ? "-" : currentTotal}
-              </span>
+            <div class="period-clock ${isLive ? "live" : ""}">
+              ${periodLabel} — ${clockStr}
             </div>
-            <div class="metric-line">
-              <span class="metric-label">Pace:</span>
-              <span class="metric-value" id="metric-pace-${game.id}">
-                ${currentPace === "" ? "-" : currentPace}
-              </span>
+            <div class="box-grid">
+              <div></div>
+              <div class="box-grid-header box-grid-cell">1H</div>
+              <div class="box-grid-header box-grid-cell">2H</div>
+              <div class="box-grid-header box-grid-cell">T</div>
+
+              <div class="box-grid-team box-grid-cell">${awayName}</div>
+              <div class="box-grid-cell">${lines.away1 ?? "-"}</div>
+              <div class="box-grid-cell">${lines.away2 ?? "-"}</div>
+              <div class="box-grid-cell">${awayScore || "-"}</div>
+
+              <div class="box-grid-team box-grid-cell">${homeName}</div>
+              <div class="box-grid-cell">${lines.home1 ?? "-"}</div>
+              <div class="box-grid-cell">${lines.home2 ?? "-"}</div>
+              <div class="box-grid-cell">${homeScore || "-"}</div>
+
+              <div class="box-grid-total-label box-grid-cell">Tot</div>
+              <div class="box-grid-cell">${lines.total1 ?? "-"}</div>
+              <div class="box-grid-cell">${lines.total2 ?? "-"}</div>
+              <div class="box-grid-cell">${state.currentTotal ?? "-"}</div>
+            </div>
+            <div class="pace-block">
+              ${buildPaceLines(state, status?.period, lines)}
             </div>
           </div>
         </div>
@@ -384,6 +460,9 @@
             </select>
             <span id="trend-full-${game.id}" class="trend-dot"></span>
           </div>
+          <div class="ou-graph">
+            <canvas id="graph-full-${game.id}" width="260" height="60"></canvas>
+          </div>
 
           <div class="ou-row">
             <label>1H O/U</label>
@@ -395,6 +474,9 @@
               <option value="under">Under</option>
             </select>
             <span id="trend-half1-${game.id}" class="trend-dot"></span>
+          </div>
+          <div class="ou-graph">
+            <canvas id="graph-half1-${game.id}" width="260" height="60"></canvas>
           </div>
 
           <div class="ou-row">
@@ -408,13 +490,15 @@
             </select>
             <span id="trend-half2-${game.id}" class="trend-dot"></span>
           </div>
+          <div class="ou-graph">
+            <canvas id="graph-half2-${game.id}" width="260" height="60"></canvas>
+          </div>
         </div>
       `;
 
       card.innerHTML = headerHtml + ouHtml;
       container.appendChild(card);
 
-      // ensure userBets entry exists
       if (!userBets[game.id]) {
         userBets[game.id] = {
           full: { line: "", side: "" },
@@ -423,7 +507,14 @@
         };
       }
 
-      // ⭐ repopulate user inputs from userBets
+      if (!projectionHistory[game.id]) {
+        projectionHistory[game.id] = {
+          full: [],
+          half1: [],
+          half2: []
+        };
+      }
+
       const bets = userBets[game.id];
 
       document.getElementById(`line-full-${game.id}`).value = bets.full.line || "";
@@ -472,24 +563,52 @@
       await ensureTeamStatsFromGame(game);
     }
 
-    const totalEl = document.getElementById(`metric-total-${gameId}`);
-    const paceEl = document.getElementById(`metric-pace-${gameId}`);
-    if (totalEl && state.currentTotal != null) {
-      totalEl.textContent = state.currentTotal;
-    }
-    if (paceEl && state.minutesPlayed && state.minutesPlayed > 0 && state.currentTotal != null) {
-      const pace = Math.round(state.currentTotal * (40 / state.minutesPlayed));
-      paceEl.textContent = pace;
+    // Update pace block live (box score & pace already built in render)
+    const status = game.competitions?.[0]?.status;
+    const lines = extractLinescore(game);
+    const paceBlock = document.querySelector(
+      `.game-card[data-game-id="${gameId}"] .pace-block`
+    );
+    if (paceBlock) {
+      paceBlock.innerHTML = buildPaceLines(state, status?.period, lines);
     }
 
-    applyTrendDot(gameId, "full", bets.full, state, method);
-    applyTrendDot(gameId, "half1", bets.half1, state, method, "first");
-    applyTrendDot(gameId, "half2", bets.half2, state, method, "second");
+    // Trend dots + projections + history + graphs
+    const projFull = applyTrendDot(gameId, "full", bets.full, state, method);
+    const projH1 = applyTrendDot(gameId, "half1", bets.half1, state, method, "first");
+    const projH2 = applyTrendDot(gameId, "half2", bets.half2, state, method, "second");
+
+    if (!projectionHistory[gameId]) {
+      projectionHistory[gameId] = { full: [], half1: [], half2: [] };
+    }
+
+    if (projFull != null) {
+      projectionHistory[gameId].full.push(projFull);
+      if (projectionHistory[gameId].full.length > 100) {
+        projectionHistory[gameId].full.shift();
+      }
+    }
+    if (projH1 != null) {
+      projectionHistory[gameId].half1.push(projH1);
+      if (projectionHistory[gameId].half1.length > 100) {
+        projectionHistory[gameId].half1.shift();
+      }
+    }
+    if (projH2 != null) {
+      projectionHistory[gameId].half2.push(projH2);
+      if (projectionHistory[gameId].half2.length > 100) {
+        projectionHistory[gameId].half2.shift();
+      }
+    }
+
+    drawGraph(gameId, "full", bets.full, projectionHistory[gameId].full);
+    drawGraph(gameId, "half1", bets.half1, projectionHistory[gameId].half1);
+    drawGraph(gameId, "half2", bets.half2, projectionHistory[gameId].half2);
   }
 
   function applyTrendDot(gameId, segmentKey, bet, state, method, halfSegment) {
     const dot = document.getElementById(`trend-${segmentKey}-${gameId}`);
-    if (!dot) return;
+    if (!dot) return null;
 
     dot.classList.remove("green", "red");
 
@@ -497,7 +616,7 @@
     const side = bet.side;
 
     if (!line || !side || !state.minutesPlayed || state.currentTotal == null) {
-      return;
+      return null;
     }
 
     let projected;
@@ -507,13 +626,15 @@
       projected = projectTotalCurveBased(state, segmentKey, halfSegment);
     }
 
-    if (projected == null) return;
+    if (projected == null) return null;
 
     const isOver = side === "over";
     const good = isOver ? projected > line : projected < line;
 
     if (good) dot.classList.add("green");
     else dot.classList.add("red");
+
+    return projected;
   }
 
   // ---- Projection A: Pace-based ----
@@ -612,11 +733,89 @@
         minutesPlayed,
         currentTotal,
         homeTeamId,
-        awayTeamId
+        awayTeamId,
+        period,
+        clockStr
       };
     } catch {
       return null;
     }
+  }
+
+  function extractLinescore(game) {
+    const comp = game.competitions?.[0];
+    const teams = comp?.competitors || [];
+    const away = teams.find(t => t.homeAway === "away") || teams[0];
+    const home = teams.find(t => t.homeAway === "home") || teams[1];
+
+    const awayLines = away?.linescores || [];
+    const homeLines = home?.linescores || [];
+
+    const away1 = awayLines[0]?.value != null ? Number(awayLines[0].value) : null;
+    const away2 = awayLines[1]?.value != null ? Number(awayLines[1].value) : null;
+    const home1 = homeLines[0]?.value != null ? Number(homeLines[0].value) : null;
+    const home2 = homeLines[1]?.value != null ? Number(homeLines[1].value) : null;
+
+    const total1 = (away1 != null && home1 != null) ? away1 + home1 : null;
+    const total2 = (away2 != null && home2 != null) ? away2 + home2 : null;
+
+    return {
+      away1,
+      away2,
+      home1,
+      home2,
+      total1,
+      total2
+    };
+  }
+
+  function buildPeriodLabel(period) {
+    if (!period || period === 1) return "1H";
+    if (period === 2) return "2H";
+    if (period === 3) return "OT";
+    if (period === 4) return "2OT";
+    return `${period - 2}OT`;
+  }
+
+  function buildPaceLines(state, period, lines) {
+    if (!state || !state.minutesPlayed || state.currentTotal == null) return "";
+
+    const { minutesPlayed, currentTotal } = state;
+    let paceGame = null;
+    let paceH1 = null;
+    let paceH2 = null;
+
+    // Game pace (always)
+    paceGame = Math.round(currentTotal * (40 / minutesPlayed));
+
+    // 1H pace: only show during 1H
+    if (period === 1) {
+      paceH1 = Math.round(currentTotal * (20 / minutesPlayed));
+    }
+
+    // 2H pace: only show during 2H
+    if (period === 2) {
+      const firstHalfTotal = lines.total1 != null ? lines.total1 : null;
+      if (firstHalfTotal != null && minutesPlayed > 20) {
+        const minutesInSecond = minutesPlayed - 20;
+        const secondHalfPoints = currentTotal - firstHalfTotal;
+        if (minutesInSecond > 0) {
+          paceH2 = Math.round(secondHalfPoints * (20 / minutesInSecond));
+        }
+      }
+    }
+
+    let html = "";
+    if (paceH1 != null) {
+      html += `<div class="pace-line">Pace 1H: ${paceH1}</div>`;
+    }
+    if (paceH2 != null) {
+      html += `<div class="pace-line">Pace 2H: ${paceH2}</div>`;
+    }
+    if (paceGame != null) {
+      html += `<div class="pace-line">Pace Game: ${paceGame}</div>`;
+    }
+    return html;
   }
 
   async function ensureTeamStatsFromGame(game) {
@@ -656,6 +855,83 @@
       return { pace, ppp, expectedTotal };
     } catch {
       return null;
+    }
+  }
+
+  function drawGraph(gameId, segmentKey, bet, history) {
+    const canvas = document.getElementById(`graph-${segmentKey}-${gameId}`);
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.clearRect(0, 0, width, height);
+
+    const line = parseFloat(bet.line);
+    const side = bet.side;
+    if (!line || !side || !history || history.length === 0) {
+      // just draw baseline
+      ctx.strokeStyle = "#ffffff55";
+      ctx.beginPath();
+      const y = height / 2;
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+      return;
+    }
+
+    const values = [...history, line];
+    let minV = Math.min(...values);
+    let maxV = Math.max(...values);
+    if (minV === maxV) {
+      minV -= 1;
+      maxV += 1;
+    }
+    const padding = 4;
+    const scaleY = (val) =>
+      height - padding - ((val - minV) / (maxV - minV)) * (height - 2 * padding);
+
+    const yLine = scaleY(line);
+
+    // background: green/red relative to bet side
+    let colorAbove, colorBelow;
+    if (side === "over") {
+      colorAbove = "rgba(46, 160, 67, 0.18)"; // green above
+      colorBelow = "rgba(248, 81, 73, 0.18)"; // red below
+    } else {
+      colorAbove = "rgba(248, 81, 73, 0.18)"; // red above
+      colorBelow = "rgba(46, 160, 67, 0.18)"; // green below
+    }
+    ctx.fillStyle = colorAbove;
+    ctx.fillRect(0, 0, width, yLine);
+    ctx.fillStyle = colorBelow;
+    ctx.fillRect(0, yLine, width, height - yLine);
+
+    // bet line
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, yLine);
+    ctx.lineTo(width, yLine);
+    ctx.stroke();
+
+    // projection line
+    const n = history.length;
+    if (n > 0) {
+      const stepX = width / Math.max(n - 1, 1);
+      const lastVal = history[history.length - 1];
+      const isOver = side === "over";
+      const good = isOver ? lastVal > line : lastVal < line;
+      ctx.strokeStyle = good ? "#2ea043" : "#f85149";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      history.forEach((val, idx) => {
+        const x = idx * stepX;
+        const y = scaleY(val);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
     }
   }
 
