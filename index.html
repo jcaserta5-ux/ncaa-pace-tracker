@@ -1,1 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NCAA Live Scoreboard (Proxy)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background:#050816; color:#f9fafb; margin:0; padding:1.5rem; }
+    h1 { margin-top:0; }
+    .controls { margin-bottom:1rem; display:flex; gap:0.5rem; flex-wrap:wrap; }
+    input, button { padding:0.4rem 0.6rem; border-radius:4px; border:1px solid #4b5563; background:#111827; color:#f9fafb; }
+    button { cursor:pointer; border-color:#2563eb; }
+    button:hover { background:#1d4ed8; }
+    .games { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:0.75rem; margin-top:1rem; }
+    .game-card { background:#111827; border-radius:6px; padding:0.6rem 0.75rem; border:1px solid #1f2937; cursor:pointer; }
+    .game-card:hover { border-color:#2563eb; }
+    .teams { display:flex; justify-content:space-between; font-size:0.9rem; }
+    .status { font-size:0.75rem; color:#9ca3af; margin-top:0.25rem; }
+    .selected { border-color:#22c55e; }
+    pre { background:#020617; padding:0.75rem; border-radius:6px; overflow:auto; font-size:0.8rem; }
+  </style>
+</head>
+<body>
+  <h1>NCAA D1 Men’s Live Scoreboard</h1>
 
+  <div class="controls">
+    <label>
+      <span>Date (YYYY-MM-DD):</span>
+      <input id="dateInput" type="text" />
+    </label>
+    <button id="loadBtn">Load Scoreboard</button>
+    <button id="autoBtn">Toggle Auto-Refresh (10s)</button>
+  </div>
+
+  <div id="meta"></div>
+  <div id="games" class="games"></div>
+
+  <h2>Selected Game JSON</h2>
+  <pre id="gameJson">Click a game card to load its full JSON…</pre>
+
+  <script>
+    const API_BASE = '/api';
+    const dateInput = document.getElementById('dateInput');
+    const loadBtn = document.getElementById('loadBtn');
+    const autoBtn = document.getElementById('autoBtn');
+    const gamesEl = document.getElementById('games');
+    const metaEl = document.getElementById('meta');
+    const gameJsonEl = document.getElementById('gameJson');
+
+    let autoTimer = null;
+    let lastDate = null;
+    let selectedGameId = null;
+
+    function todayISO() {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    dateInput.value = todayISO();
+
+    async function loadScoreboard() {
+      const date = dateInput.value.trim() || todayISO();
+      lastDate = date;
+
+      metaEl.textContent = 'Loading scoreboard…';
+      gamesEl.innerHTML = '';
+
+      try {
+        const res = await fetch(`${API_BASE}/scoreboard?date=${encodeURIComponent(date)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        renderScoreboard(data);
+      } catch (err) {
+        metaEl.textContent = `Error loading scoreboard: ${err.message}`;
+      }
+    }
+
+    function renderScoreboard(data) {
+      // NCAA structure is usually { games: [ { game: {...} }, ... ], ... }
+      const games = (data.games || []).map(g => g.game || g);
+
+      metaEl.textContent = `Games: ${games.length}`;
+
+      gamesEl.innerHTML = '';
+      games.forEach(g => {
+        const card = document.createElement('div');
+        card.className = 'game-card';
+        card.dataset.gameId = g.id;
+
+        const homeName = g.home && (g.home.shortName || g.home.name || 'Home');
+        const awayName = g.away && (g.away.shortName || g.away.name || 'Away');
+        const homeScore = g.home && g.home.score != null ? g.home.score : '-';
+        const awayScore = g.away && g.away.score != null ? g.away.score : '-';
+        const status = g.status || g.gameState || '';
+
+        card.innerHTML = `
+          <div class="teams">
+            <div>${awayName}</div>
+            <div>${awayScore}</div>
+          </div>
+          <div class="teams">
+            <div>${homeName}</div>
+            <div>${homeScore}</div>
+          </div>
+          <div class="status">${status}</div>
+        `;
+
+        card.addEventListener('click', () => {
+          document.querySelectorAll('.game-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          selectedGameId = g.id;
+          loadGame(g.id);
+        });
+
+        gamesEl.appendChild(card);
+      });
+    }
+
+    async function loadGame(gameId) {
+      gameJsonEl.textContent = `Loading game ${gameId}…`;
+      try {
+        const res = await fetch(`${API_BASE}/game/${encodeURIComponent(gameId)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        gameJsonEl.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        gameJsonEl.textContent = `Error loading game: ${err.message}`;
+      }
+    }
+
+    loadBtn.addEventListener('click', () => {
+      loadScoreboard();
+    });
+
+    autoBtn.addEventListener('click', () => {
+      if (autoTimer) {
+        clearInterval(autoTimer);
+        autoTimer = null;
+        autoBtn.textContent = 'Toggle Auto-Refresh (10s)';
+      } else {
+        autoTimer = setInterval(() => {
+          loadScoreboard();
+          if (selectedGameId) {
+            loadGame(selectedGameId);
+          }
+        }, 10000);
+        autoBtn.textContent = 'Auto-Refresh: ON (10s)';
+      }
+    });
+
+    // Initial load
+    loadScoreboard();
+  </script>
+</body>
+</html>
