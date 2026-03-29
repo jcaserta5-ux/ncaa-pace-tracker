@@ -139,7 +139,7 @@
     .metrics-column {
       min-width: 120px;
       text-align: right;
-      font-size: 14px;
+      font-size: 14px; /* match score font size */
     }
 
     .metric-line {
@@ -202,7 +202,7 @@
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background: #6e7681;
+      background: #6e7681; /* neutral gray */
       display: inline-block;
       margin-left: 4px;
     }
@@ -256,11 +256,11 @@
 
   <script>
     let autoRefresh = null;
-    let lastLoadedDate = null;
 
+    // userBets[gameId] = { full: { line, side }, half1: {...}, half2: {...} }
     const userBets = {};
-    const teamStatsCache = {};
-    const scoreboardGames = {};
+    const teamStatsCache = {}; // teamId -> { pace, ppp, expectedTotal }
+    const scoreboardGames = {}; // gameId -> latest scoreboard game object
 
     function initDate() {
       const input = document.getElementById("dateInput");
@@ -273,7 +273,9 @@
 
     function getProjectionMethod() {
       const radios = document.querySelectorAll('input[name="projectionMethod"]');
-      for (const r of radios) if (r.checked) return r.value;
+      for (const r of radios) {
+        if (r.checked) return r.value;
+      }
       return "pace";
     }
 
@@ -298,7 +300,7 @@
         autoRefresh = null;
         btn.textContent = "Resume Auto-Refresh";
       } else {
-        autoRefresh = setInterval(refreshIncremental, 10000);
+        autoRefresh = setInterval(loadScoreboard, 5000);
         btn.textContent = "Pause Auto-Refresh";
       }
     }
@@ -464,6 +466,7 @@
         await ensureTeamStatsFromGame(game);
       }
 
+      // update metrics column live
       const totalEl = document.getElementById(`metric-total-${gameId}`);
       const paceEl = document.getElementById(`metric-pace-${gameId}`);
       if (totalEl && state.currentTotal != null) {
@@ -504,10 +507,14 @@
       const isOver = side === "over";
       const good = isOver ? projected > line : projected < line;
 
-      if (good) dot.classList.add("green");
-      else dot.classList.add("red");
+      if (good) {
+        dot.classList.add("green");
+      } else {
+        dot.classList.add("red");
+      }
     }
 
+    // ---- Projection A: Pace-based ----
     function projectTotalPaceBased(state, segmentKey, halfSegment) {
       const { minutesPlayed, currentTotal } = state;
       if (minutesPlayed <= 0) return null;
@@ -532,6 +539,7 @@
       return null;
     }
 
+    // ---- Projection C2: Team-adjusted curve ----
     function projectTotalCurveBased(state, segmentKey, halfSegment) {
       const { minutesPlayed, currentTotal, homeTeamId, awayTeamId } = state;
       if (minutesPlayed <= 0) return null;
@@ -554,7 +562,7 @@
         const minutesInSecond = minutesPlayed - 20;
         if (minutesInSecond <= 0) return null;
         const expectedSecondHalf = expectedTotalFull * 0.5;
-                expectedAtMinute = expectedSecondHalf * (minutesInSecond / 20);
+        expectedAtMinute = expectedSecondHalf * (minutesInSecond / 20);
       } else {
         return null;
       }
@@ -564,74 +572,98 @@
       return impliedFinal;
     }
 
-    /* ---------------------------------------------------------
-       INCREMENTAL REFRESH (only updates scores, totals, pace, dots)
-    --------------------------------------------------------- */
-    async function refreshIncremental() {
-      const date = document.getElementById("dateInput").value;
+    // ---- Helpers: state + team stats ----
+    function extractGameStateFromScoreboard(game) {
+      try {
+        const comp = game.competitions?.[0];
+        const teams = comp?.competitors || [];
+        const away = teams.find(t => t.homeAway === "away") || teams[0];
+        const home = teams.find(t => t.homeAway === "home") || teams[1];
 
-      // If user changed date mid-cycle, do nothing (onDateChange handles it)
-      if (date !== lastLoadedDate) return;
+        const homeTeamId = home?.team?.id;
+        const awayTeamId = away?.team?.id;
 
-      const res = await fetch(`/api/scoreboard?date=${date}`);
-      if (!res.ok) return;
+        const homeScore = Number(home?.score ?? 0);
+        const awayScore = Number(away?.score ?? 0);
+        const currentTotal = homeScore + awayScore;
 
-      const data = await res.json();
-      const games = data.games || [];
+        const status = comp?.status;
+        const period = status?.period || 1;
+        const clockStr = status?.displayClock || "0:00";
 
-      // Update only existing games
-      games.forEach(game => {
-        const id = game.id;
-        if (!scoreboardGames[id]) return; // ignore games not in current date
+        const [minStr, secStr] = clockStr.split(":");
+        const clockMinutes = parseInt(minStr || "0", 10);
+        const clockSeconds = parseInt(secStr || "0", 10);
 
-        scoreboardGames[id] = game;
-        updateTrendForGame(id, game);
-      });
-    }
+        let minutesPlayed;
+        if (period === 1) {
+          minutesPlayed = 20 - (clockMinutes + clockSeconds / 60);
+        } else if (period === 2) {
+          minutesPlayed = 20 + (20 - (clockMinutes + clockSeconds / 60));
+        } else if (period > 2) {
+          minutesPlayed = 40 + (5 * (period - 3)) - (clockMinutes + clockSeconds / 60);
+        } else {
+          minutesPlayed = 0;
+        }
 
-    /* ---------------------------------------------------------
-       DATE CHANGE HANDLER — FULL RESET
-    --------------------------------------------------------- */
-    async function onDateChange() {
-      const newDate = document.getElementById("dateInput").value;
-
-      // If the user actually changed the date → FULL RESET
-      if (newDate !== lastLoadedDate) {
-        clearInterval(autoRefresh);
-        autoRefresh = null;
-
-        // wipe user inputs
-        Object.keys(userBets).forEach(k => delete userBets[k]);
-
-        // wipe game state
-        Object.keys(scoreboardGames).forEach(k => delete scoreboardGames[k]);
-
-        // clear UI immediately so no mixed dates appear
-        document.getElementById("scoreboard").innerHTML = "";
-
-        // load new date's games
-        await loadScoreboard();
-
-        // start fresh 10-second refresh loop
-        autoRefresh = setInterval(refreshIncremental, 10000);
-
-        lastLoadedDate = newDate;
+        return {
+          minutesPlayed,
+          currentTotal,
+          homeTeamId,
+          awayTeamId
+        };
+      } catch {
+        return null;
       }
     }
 
-    /* ---------------------------------------------------------
-       INIT
-    --------------------------------------------------------- */
-    document.getElementById("dateInput").addEventListener("change", onDateChange);
+    async function ensureTeamStatsFromGame(game) {
+      const comp = game.competitions?.[0];
+      const teams = comp?.competitors || [];
+      const away = teams.find(t => t.homeAway === "away") || teams[0];
+      const home = teams.find(t => t.homeAway === "home") || teams[1];
 
+      const ids = [away?.team?.id, home?.team?.id].filter(Boolean);
+
+      for (const id of ids) {
+        if (!id || teamStatsCache[id]) continue;
+        const stats = await fetchTeamStats(id);
+        if (stats) teamStatsCache[id] = stats;
+      }
+    }
+
+    async function fetchTeamStats(teamId) {
+      try {
+        // Backend should proxy ESPN and return:
+        // { pointsPerGame, fieldGoalsAttempted, freeThrowsAttempted,
+        //   offensiveRebounds, turnovers, gamesPlayed }
+        const res = await fetch(`/api/team/${teamId}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+
+        const ppg = Number(data.pointsPerGame ?? 0);
+        const fga = Number(data.fieldGoalsAttempted ?? 0);
+        const fta = Number(data.freeThrowsAttempted ?? 0);
+        const orb = Number(data.offensiveRebounds ?? 0);
+        const tov = Number(data.turnovers ?? 0);
+        const games = Number(data.gamesPlayed ?? 0) || 1;
+
+        const possessionsTotal = fga + tov + 0.44 * fta - orb;
+        const pace = possessionsTotal / games;
+        const ppp = ppg / Math.max(pace, 1e-6);
+
+        const expectedTotal = ppg; // per 40 minutes
+
+        return { pace, ppp, expectedTotal };
+      } catch {
+        return null;
+      }
+    }
+
+    // ---- init ----
     initDate();
-    lastLoadedDate = document.getElementById("dateInput").value;
-
-    // initial full load
     loadScoreboard();
-
-    // start 10-second incremental refresh
-    autoRefresh = setInterval(refreshIncremental, 10000);
+    autoRefresh = setInterval(loadScoreboard, 5000);
   </script>
 </body>
 </html>
