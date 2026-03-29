@@ -456,7 +456,7 @@
     }
   }
 
-    /* ---------------------------------------------------------
+   /* ---------------------------------------------------------
      UPDATE GAME DISPLAY (SCORES, TOTAL, PACE, STATUS)
   --------------------------------------------------------- */
   function updateGameDisplay(gameId) {
@@ -769,29 +769,42 @@
   }
 
   /* ---------------------------------------------------------
-     DATE CHANGE HANDLER
+     ⭐ DATE CHANGE HANDLER — FULL RESET (FIXES YOUR BUG)
   --------------------------------------------------------- */
- function onDateChange() {
-  const date = document.getElementById("dateInput").value;
+  function onDateChange() {
+    const date = document.getElementById("dateInput").value;
 
-  // ⭐ FULL RESET WHEN USER CHANGES DATE
-  clearInterval(autoRefresh);
-  autoRefresh = null;
+    // stop old refresh loop
+    clearInterval(autoRefresh);
+    autoRefresh = null;
 
-  // wipe all user inputs (we only preserve inputs when date stays the same)
-  Object.keys(userBets).forEach(k => delete userBets[k]);
+    // wipe user inputs (only preserved when date stays the same)
+    Object.keys(userBets).forEach(k => delete userBets[k]);
 
-  // wipe all game state
-  currentGameIds.length = 0;
-  Object.keys(scoreboardGames).forEach(k => delete scoreboardGames[k]);
+    // wipe game state
+    currentGameIds.length = 0;
+    Object.keys(scoreboardGames).forEach(k => delete scoreboardGames[k]);
 
-  // clear UI immediately so no mixed dates appear
-  document.getElementById("scoreboard").innerHTML = "";
+    // clear UI immediately so no mixed dates appear
+    document.getElementById("scoreboard").innerHTML = "";
 
-  // load new date's games
-  loadScoreboardForDate(date);
+    // load new date's games
+    loadScoreboardForDate(date);
 
-  // start a fresh 15-second refresh loop
+    // start fresh refresh loop
+    autoRefresh = setInterval(refreshScoreboard, 15000);
+  }
+
+  /* ---------------------------------------------------------
+     INIT
+  --------------------------------------------------------- */
+  document.getElementById("dateInput").addEventListener("change", onDateChange);
+
+  initDate();
+  loadScoreboardForDate(lastSelectedDate);
   autoRefresh = setInterval(refreshScoreboard, 15000);
-}
+</script>
+
+</body>
+</html>
 
