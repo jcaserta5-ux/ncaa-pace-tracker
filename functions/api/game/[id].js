@@ -9,53 +9,69 @@ export async function onRequest(context) {
   }
 
   try {
-    // 1. Fetch the event root (new ESPN API)
-    const eventUrl = `https://sports.core.api.espn.com/v2/sports/basketball/mens-college-basketball/events/${id}?lang=en&region=us`;
-    const eventRes = await fetch(eventUrl, { cf: { cacheEverything: true } });
+    // ---------------------------------------------------------
+    // 1. TRY ESPN V2 (Gamecast-level data)
+    // ---------------------------------------------------------
+    const v2Url = `https://sports.core.api.espn.com/v2/sports/basketball/mens-college-basketball/events/${id}?lang=en&region=us`;
+    const v2Res = await fetch(v2Url, { cf: { cacheEverything: true } });
 
-    if (!eventRes.ok) {
-      return new Response(JSON.stringify({ error: "ESPN returned 404" }), {
-        headers: { "Content-Type": "application/json" },
-      });
+    if (v2Res.ok) {
+      const event = await v2Res.json();
+
+      // Follow competition reference
+      const competitionRef = event.competitions?.[0]?.$ref;
+      if (competitionRef) {
+        const compRes = await fetch(competitionRef);
+        const competition = await compRes.json();
+
+        const links = competition.links || [];
+
+        const boxscoreLink = links.find(l => l.rel?.includes("boxscore"))?.href;
+        const scoringLink = links.find(l => l.rel?.includes("scoringplays"))?.href;
+        const linescoreLink = links.find(l => l.rel?.includes("linescore"))?.href;
+
+        const [boxscore, scoring, linescore] = await Promise.all([
+          boxscoreLink ? fetch(boxscoreLink).then(r => r.json()) : null,
+          scoringLink ? fetch(scoringLink).then(r => r.json()) : null,
+          linescoreLink ? fetch(linescoreLink).then(r => r.json()) : null,
+        ]);
+
+        return new Response(
+          JSON.stringify({
+            source: "espn-v2",
+            event,
+            competition,
+            boxscore,
+            scoring,
+            linescore,
+          }),
+          { headers: { "Content-Type": "application/json" } }
+        );
+      }
     }
 
-    const event = await eventRes.json();
+    // ---------------------------------------------------------
+    // 2. FALLBACK: ESPN OLD SUMMARY API (covers ALL games)
+    // ---------------------------------------------------------
+    const oldUrl = `https://site.web.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary?event=${id}`;
+    const oldRes = await fetch(oldUrl, { cf: { cacheEverything: true } });
 
-    // 2. Follow the competition reference
-    const competitionRef = event.competitions?.[0]?.$ref;
-    if (!competitionRef) {
-      return new Response(JSON.stringify({ error: "Invalid ESPN event structure" }), {
-        headers: { "Content-Type": "application/json" },
-      });
+    if (oldRes.ok) {
+      const summary = await oldRes.json();
+
+      return new Response(
+        JSON.stringify({
+          source: "espn-legacy",
+          summary,
+        }),
+        { headers: { "Content-Type": "application/json" } }
+      );
     }
 
-    const compRes = await fetch(competitionRef);
-    const competition = await compRes.json();
-
-    // 3. Extract useful sub-endpoints
-    const links = competition.links || [];
-
-    const boxscoreLink = links.find(l => l.rel?.includes("boxscore"))?.href;
-    const scoringLink = links.find(l => l.rel?.includes("scoringplays"))?.href;
-    const linescoreLink = links.find(l => l.rel?.includes("linescore"))?.href;
-
-    // 4. Fetch sub-resources in parallel
-    const [boxscore, scoring, linescore] = await Promise.all([
-      boxscoreLink ? fetch(boxscoreLink).then(r => r.json()) : null,
-      scoringLink ? fetch(scoringLink).then(r => r.json()) : null,
-      linescoreLink ? fetch(linescoreLink).then(r => r.json()) : null,
-    ]);
-
-    // 5. Build final response object
-    const result = {
-      event,
-      competition,
-      boxscore,
-      scoring,
-      linescore,
-    };
-
-    return new Response(JSON.stringify(result), {
+    // ---------------------------------------------------------
+    // 3. If both fail, return error
+    // ---------------------------------------------------------
+    return new Response(JSON.stringify({ error: "Game not found in ESPN APIs" }), {
       headers: { "Content-Type": "application/json" },
     });
 
