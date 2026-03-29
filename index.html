@@ -177,10 +177,15 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 6px;
-  width: 150px;       /* fixed width */
-  flex-shrink: 0;     /* prevents squeezing */
+  width: 150px;      /* fixed width */
+  flex-shrink: 0;    /* prevents squeezing */
   text-align: right;
   font-size: 15px;
+}
+/* ⭐ ALLOW LEFT COLUMN TO SHRINK INSTEAD OF PUSHING METRICS OUT */
+.teams-column {
+  flex: 1;
+  min-width: 0;      /* critical: allows wrapping instead of overflow */
 }
     .pace-block {
       margin-top: 2px;
@@ -834,29 +839,28 @@ function drawGraph(gameId, segmentKey, bet, history) {
 
   const line = parseFloat(bet.line);
   const side = bet.side;
-  if (!line || !side || !history || history.length === 0) {
+
+  // If no line or side, draw a neutral baseline
+  if (!line || !side) {
     ctx.strokeStyle = "#ffffff55";
     ctx.beginPath();
-    const y = height / 2;
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
+    ctx.moveTo(0, height / 2);
+    ctx.lineTo(width, height / 2);
     ctx.stroke();
     return;
   }
 
-  const values = [...history, line];
-  let minV = Math.min(...values);
-  let maxV = Math.max(...values);
-  if (minV === maxV) {
-    minV -= 1;
-    maxV += 1;
-  }
+  // ⭐ FIXED RANGE: ±10 around the line
+  const minV = line - 10;
+  const maxV = line + 10;
+
   const padding = 4;
   const scaleY = (val) =>
     height - padding - ((val - minV) / (maxV - minV)) * (height - 2 * padding);
 
   const yLine = scaleY(line);
 
+  // Background shading
   let colorAbove, colorBelow;
   if (side === "over") {
     colorAbove = "rgba(46, 160, 67, 0.18)";
@@ -865,11 +869,13 @@ function drawGraph(gameId, segmentKey, bet, history) {
     colorAbove = "rgba(248, 81, 73, 0.18)";
     colorBelow = "rgba(46, 160, 67, 0.18)";
   }
+
   ctx.fillStyle = colorAbove;
   ctx.fillRect(0, 0, width, yLine);
   ctx.fillStyle = colorBelow;
   ctx.fillRect(0, yLine, width, height - yLine);
 
+  // White bet line
   ctx.strokeStyle = "#ffffff";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -877,23 +883,41 @@ function drawGraph(gameId, segmentKey, bet, history) {
   ctx.lineTo(width, yLine);
   ctx.stroke();
 
+  // No history yet → nothing else to draw
+  if (!history || history.length === 0) return;
+
+  // Trend line
   const n = history.length;
-  if (n > 0) {
-    const stepX = width / Math.max(n - 1, 1);
-    const lastVal = history[history.length - 1];
-    const isOver = side === "over";
-    const good = isOver ? lastVal > line : lastVal < line;
-    ctx.strokeStyle = good ? "#2ea043" : "#f85149";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    history.forEach((val, idx) => {
-      const x = idx * stepX;
-      const y = scaleY(val);
-      if (idx === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-  }
+  const stepX = width / Math.max(n - 1, 1);
+
+  const lastVal = history[history.length - 1];
+  const isOver = side === "over";
+  const good = isOver ? lastVal > line : lastVal < line;
+
+  ctx.strokeStyle = good ? "#2ea043" : "#f85149";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+
+  history.forEach((val, idx) => {
+    const x = idx * stepX;
+    const y = scaleY(val);
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+
+  ctx.stroke();
+
+  // ⭐ Difference label (green/red)
+  const diff = (lastVal - line).toFixed(1);
+  ctx.fillStyle = good ? "#2ea043" : "#f85149";
+  ctx.font = "bold 14px Arial";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  ctx.fillText(
+    diff > 0 ? `+${diff}` : diff,
+    width - 4,
+    scaleY(lastVal)
+  );
 }
 
 // ---- INIT ----
