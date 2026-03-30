@@ -238,12 +238,21 @@
 
 
 
-  <script>
+<script>
 let autoRefresh = null;
 let scoreboardGames = {};
 let userBets = {};
 let projectionHistory = {};
 let teamStatsCache = {};
+
+/* -------------------------------
+   SAFE SCORE NORMALIZATION
+--------------------------------*/
+function safeScore(val) {
+  if (val === null || val === undefined) return null;
+  const n = Number(val);
+  return isNaN(n) ? null : n;
+}
 
 /* -------------------------------
    INIT DATE + LOAD SCOREBOARD
@@ -323,23 +332,25 @@ function renderGameCard(game) {
   const awayLines = away?.linescores || [];
   const homeLines = home?.linescores || [];
 
-  const away1 = awayLines[0]?.value ?? "-";
-  const away2 = awayLines[1]?.value ?? "-";
-  const awayOT = awayLines[2]?.value ?? "-";
-  const awayTotal = away?.score ?? "-";
+  /* ⭐ SAFE SCORING */
+  const away1 = safeScore(awayLines[0]?.value);
+  const away2 = safeScore(awayLines[1]?.value);
+  const awayOT = safeScore(awayLines[2]?.value);
 
-  const home1 = homeLines[0]?.value ?? "-";
-  const home2 = homeLines[1]?.value ?? "-";
-  const homeOT = homeLines[2]?.value ?? "-";
-  const homeTotal = home?.score ?? "-";
+  const home1 = safeScore(homeLines[0]?.value);
+  const home2 = safeScore(homeLines[1]?.value);
+  const homeOT = safeScore(homeLines[2]?.value);
 
-  const total1 = (away1 !== "-" && home1 !== "-") ? away1 + home1 : "-";
-  const total2 = (away2 !== "-" && home2 !== "-") ? away2 + home2 : "-";
-  const totalOT = (awayOT !== "-" && homeOT !== "-") ? awayOT + homeOT : "-";
-  const totalGame = (awayTotal !== "-" && homeTotal !== "-") ? awayTotal + homeTotal : "-";
+  const awayTotal = safeScore(away?.score);
+  const homeTotal = safeScore(home?.score);
+
+  /* ⭐ TOTALS (safe) */
+  const total1 = (away1 != null && home1 != null) ? away1 + home1 : "-";
+  const total2 = (away2 != null && home2 != null) ? away2 + home2 : "-";
+  const totalOT = (awayOT != null && homeOT != null) ? awayOT + homeOT : "-";
+  const totalGame = (awayTotal != null && homeTotal != null) ? awayTotal + homeTotal : "-";
 
   const status = comp?.status;
-  const period = status?.period || 1;
 
   /* -------------------------------
      BUILD CARD HTML
@@ -354,10 +365,10 @@ function renderGameCard(game) {
           ${awayName}
         </div>
         <div class="team-score-block">
-          <span class="half-score">${away1}</span>
-          <span class="half-score">${away2}</span>
-          <span class="half-score">${awayOT}</span>
-          <span class="team-score">${awayTotal}</span>
+          <span class="half-score">${away1 ?? "-"}</span>
+          <span class="half-score">${away2 ?? "-"}</span>
+          <span class="half-score">${awayOT ?? "-"}</span>
+          <span class="team-score">${awayTotal ?? "-"}</span>
         </div>
       </div>
 
@@ -368,10 +379,10 @@ function renderGameCard(game) {
           ${homeName}
         </div>
         <div class="team-score-block">
-          <span class="half-score">${home1}</span>
-          <span class="half-score">${home2}</span>
-          <span class="half-score">${homeOT}</span>
-          <span class="team-score">${homeTotal}</span>
+          <span class="half-score">${home1 ?? "-"}</span>
+          <span class="half-score">${home2 ?? "-"}</span>
+          <span class="half-score">${homeOT ?? "-"}</span>
+          <span class="team-score">${homeTotal ?? "-"}</span>
         </div>
       </div>
 
@@ -384,10 +395,8 @@ function renderGameCard(game) {
         <span>${totalGame}</span>
       </div>
 
-      <!-- ⭐ NEW PACE ROW (1H Pace | 2H+OT Pace | Game Pace) -->
-      <div class="pace-row pace-block">
-        <!-- JS will fill this -->
-      </div>
+      <!-- ⭐ NEW PACE ROW -->
+      <div class="pace-row pace-block"></div>
 
       <!-- STATUS -->
       <div class="status ${status?.type?.state === "in" ? "live" : ""}">
